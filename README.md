@@ -8,3 +8,5 @@ Usage :
 - Build : `dune build ur.exe`
 - Run : `dune exec ./ur.exe`
 - Follow instructions on screen (play with numbers on your keyboard)
+
+![illustration](screen.png)
