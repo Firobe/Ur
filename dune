@@ -1,0 +1,2 @@
+(executable (name ur)
+(libraries graphics unix))
