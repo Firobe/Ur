@@ -36,7 +36,7 @@ type state = {
 let is_rose = function
   | Intro x -> x = 3
   | Main x -> x = 3
-  | Outro x -> x = 1
+  | Outro _
   | Reserve -> false
 
 (* ==== DISPLAY ==== *)
@@ -257,6 +257,29 @@ let rec play state player =
     in
     play (play_once state None) next_player
 
+let basic_ai am =
+  let pos_compare = compare in
+  let sortfun x y = match (x, y) with
+    | (_, Finish), (_, Finish) -> 0
+    | (_, Finish), _ -> 1
+    | _, (_, Finish) -> -1
+    | (_, Take {position=a; _}), (_, Take {position= b; _}) ->
+      pos_compare a b
+    | (_, Take _), _ -> 1
+    | _, (_, Take _) -> -1
+    | ({position=a; _}, Add), ({position=b; _}, Add) ->
+      pos_compare a b
+    | (_, Add), _ -> 1
+    | _, (_, Add) -> -1
+    | (_, Move a), (_, Move b) -> pos_compare a b
+  in
+  let choice = List.sort sortfun am |> List.rev |> List.hd in
+  set_color green;
+  let x, y = pawn_to_coord (fst choice) in
+  draw_circle_grid x y 5;
+  draw_info 1 magenta "AI chooses to move this pawn";
+  Unix.sleepf 2.; choice
+
 let auto_choose am = Unix.sleepf 0.5; List.hd am
 
 let main =
@@ -267,8 +290,8 @@ let main =
     choose = ask_draw 
   } in
   let state = {
-    p1 = default_player;
-    p2 = default_player;
+    p1 = {default_player with choose = ask_draw};
+    p2 = {default_player with choose = basic_ai};
     pawns = []
   } in play state P1;
   terminate ()
