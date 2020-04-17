@@ -1,6 +1,12 @@
+(* ==== GLOBAL PARAMETERS ==== *)
+
 let max_pawns = 7
 let ss = 40 (* Square size *)
+let auto_mode = false
+let ia_wait = if auto_mode then 0.01 else 2.
 
+
+(* ==== TYPES ==== *)
 
 type playerNo = P1 | P2
 
@@ -24,7 +30,7 @@ type move =
 type player = {
   reserve : int;
   points : int;
-  choose : (pawn * move) list -> (pawn * move)
+  choose : (pawn * move) list -> (pawn * move) option
 }
 
 type state = {
@@ -82,6 +88,7 @@ let draw_pawn p =
   draw_circle_grid x y 3
 
 let draw_state state =
+  auto_synchronize false;
   draw_board ();
   List.iter draw_pawn state.pawns;
   set_color red;
@@ -91,26 +98,8 @@ let draw_state state =
   set_color blue;
   moveto 5 (ss * 3 + 10);
   draw_string @@ Format.sprintf "Reserve %d  Points %d"
-    state.p2.reserve state.p2.points
-
-let ask_draw am =
-  List.iteri (fun i (p, _) ->
-      set_color green;
-      let x, y = pawn_to_coord p in
-      draw_circle_grid x y 5;
-      moveto (x * ss + 2) (y * ss + 2);
-      set_color black;
-      draw_string (string_of_int (i + 1))
-    ) am;
-  let rec choice_loop () =
-    try
-      let key = read_key () in
-      let choice = int_of_string (String.make 1 key) in
-      if choice <= List.length am && choice > 0 then choice
-      else choice_loop ()
-    with _ -> choice_loop ()
-  in
-  List.nth am (choice_loop () - 1)
+    state.p2.reserve state.p2.points;
+  auto_synchronize true
 
 let draw_info offset color s =
   set_color color;
@@ -123,6 +112,31 @@ let init =
 
 let terminate () =
   close_graph ()
+
+let ask_draw am =
+  if am = [] then begin
+    draw_info 1 magenta "You cannot move ! (press any key)";
+    ignore (read_key ());
+    None
+  end else begin
+    List.iteri (fun i (p, _) ->
+        set_color green;
+        let x, y = pawn_to_coord p in
+        draw_circle_grid x y 5;
+        moveto (x * ss + 2) (y * ss + 2);
+        set_color black;
+        draw_string (string_of_int (i + 1))
+      ) am;
+    let rec choice_loop () =
+      try
+        let key = read_key () in
+        let choice = int_of_string (String.make 1 key) in
+        if choice <= List.length am && choice > 0 then choice
+        else choice_loop ()
+      with _ -> choice_loop ()
+    in
+    Some (List.nth am (choice_loop () - 1))
+  end
 
 (* ==== MOVEMENT ==== *)
 
@@ -220,8 +234,8 @@ let throw_dices () =
   throw () + throw () + throw () + throw ()
 
 let pp_player fmt = function
-    | P1 -> Format.pp_print_int fmt 1
-    | P2 -> Format.pp_print_int fmt 2
+    | P1 -> Format.fprintf fmt "red"
+    | P2 -> Format.fprintf fmt "blue"
 
 let check_end state =
   if state.p1.points = max_pawns then Some P1
@@ -233,6 +247,7 @@ let rec play state player =
   | Some p ->
     draw_state state;
     draw_info 0 magenta (Format.asprintf "Player %a wins!" pp_player p);
+    draw_info 1 black "Press any key";
     ignore (read_key ())
   | None ->
     let p = if player = P1 then state.p1 else state.p2 in
@@ -243,44 +258,60 @@ let rec play state player =
       draw_info 0 (if player = P1 then red else blue)
         (Format.sprintf "You threw a %d!" n);
       let am = all_moves state player n replay in
-      if am = [] then begin
-        draw_info 1 magenta "No possible move ! (press any key)";
-        ignore (read_key ());
-        state
-      end else begin
-        let pawn, move = p.choose am in
+      match p.choose am with
+      | None -> state
+      | Some (pawn, move) ->
         let state', r = apply_move state pawn move in
-        match r with
-        | None -> state'
-        | Some _ -> play_once state' r
-      end
+        begin match r with
+          | None -> state'
+          | Some _ -> play_once state' r
+        end
     in
     play (play_once state None) next_player
 
-let basic_ai am =
-  let pos_compare = compare in
-  let sortfun x y = match (x, y) with
-    | (_, Finish), (_, Finish) -> 0
-    | (_, Finish), _ -> 1
-    | _, (_, Finish) -> -1
-    | (_, Take {position=a; _}), (_, Take {position= b; _}) ->
-      pos_compare a b
-    | (_, Take _), _ -> 1
-    | _, (_, Take _) -> -1
-    | ({position=a; _}, Add), ({position=b; _}, Add) ->
-      pos_compare a b
-    | (_, Add), _ -> 1
-    | _, (_, Add) -> -1
-    | (_, Move a), (_, Move b) -> pos_compare a b
-  in
-  let choice = List.sort sortfun am |> List.rev |> List.hd in
-  set_color green;
-  let x, y = pawn_to_coord (fst choice) in
-  draw_circle_grid x y 5;
-  draw_info 1 magenta "AI chooses to move this pawn";
-  Unix.sleepf 2.; choice
+(* ==== ARTIFICIAL PLAYERS ==== *)
 
-let auto_choose am = Unix.sleepf 0.5; List.hd am
+let common_ai sub am =
+  if am = [] then begin
+    draw_info 1 magenta "IA cannot move !";
+    Unix.sleepf ia_wait; None
+  end else begin
+    let choice = sub am in
+    set_color green;
+    let x, y = pawn_to_coord (fst choice) in
+    draw_circle_grid x y 5;
+    draw_info 1 magenta "AI chooses to move this pawn";
+    Unix.sleepf ia_wait; Some choice
+  end
+
+let basic_ai =
+    let pos_compare = compare in
+    let sortfun x y = match (x, y) with
+      | (_, Take {position=a; _}), (_, Take {position= b; _}) ->
+        pos_compare a b
+      | (_, Take _), _ -> 1
+      | _, (_, Take _) -> -1
+      | (_, Finish), (_, Finish) -> 0
+      | (_, Finish), _ -> 1
+      | _, (_, Finish) -> -1
+      | ({position=a; _}, Add), ({position=b; _}, Add) ->
+        pos_compare a b
+      | (_, Add), _ -> 1
+      | _, (_, Add) -> -1
+      | (_, Move (Outro a)), (_, Move (Outro b)) -> compare a b
+      | (_, Move (Outro _)), (_, Move _) -> 1
+      | (_, Move _), (_, Move (Outro _)) -> -1
+      | (_, Move (Intro a)), (_, Move (Intro b)) -> compare a b
+      | (_, Move (Intro _)), (_, Move _) -> 1
+      | (_, Move _), (_, Move (Intro _)) -> -1
+      | (_, Move a), (_, Move b) -> pos_compare a b
+    in
+    let sub am = List.sort sortfun am |> List.rev |> List.hd in
+    common_ai sub
+
+let random_ai =
+  let sub am = List.nth am @@ Random.int (List.length am) in
+  common_ai sub
 
 let main =
   Random.self_init ();
@@ -290,9 +321,11 @@ let main =
     choose = ask_draw 
   } in
   let state = {
-    p1 = {default_player with choose = ask_draw};
+    p1 = {default_player with
+          choose =
+            if auto_mode then random_ai
+            else ask_draw};
     p2 = {default_player with choose = basic_ai};
     pawns = []
   } in play state P1;
   terminate ()
-
