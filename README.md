@@ -9,4 +9,4 @@ Usage :
 - Run : `dune exec ./ur.exe`
 - Follow instructions on screen (play with numbers on your keyboard)
 
-![illustration](screen.png)
+![animated demonstration](screen.gif)
