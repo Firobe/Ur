@@ -3,7 +3,7 @@
 let max_pawns = 7
 let ss = 40 (* Square size *)
 let auto_mode = false
-let ia_wait = if auto_mode then 0.01 else 2.
+let ia_wait = if auto_mode then 0.15 else 1.
 
 
 (* ==== TYPES ==== *)
@@ -77,7 +77,8 @@ let pawn_to_coord = function
     | {owner=P1; position=Outro x} -> 6 + (1 - x), 0
     | {owner=P2; position=Outro x} -> 6 + (1 - x), 2
     | {position=Main x; _} -> x, 1
-    | _ -> failwith "Cannot draw reserve pawn"
+    | {owner=P1; position=Reserve} -> 4, 0
+    | {owner=P2; position=Reserve} -> 4, 2
 
 let draw_circle_grid x y r =
   fill_circle (ss * x + ss / 2) (ss * y + ss / 2) (ss / r)
@@ -105,6 +106,30 @@ let draw_info offset color s =
   set_color color;
   moveto 200 (ss * 3 + 17 - offset * 10);
   draw_string s
+
+let draw_movement state pawn new_pos =
+  draw_state state;
+  let image = get_image 0 0 (ss * 9) (ss * 4) in
+  let foi = Float.of_int in
+  let iof = Int.of_float in
+  let x1, y1 = pawn_to_coord pawn in
+  let x2, y2 = pawn_to_coord {pawn with position = new_pos} in
+  let delta_x = x2 - x1 in
+  let delta_y = y2 - y1 in
+  let precision = 100 in
+  let fx1, fy1, fdx, fdy = foi x1, foi y1, foi delta_x, foi delta_y in
+  set_color (if pawn.owner = P1 then red else blue);
+  for t = 0 to precision do
+    let ft = (foi t) /. (foi precision) *. Float.pi in
+    let raw = Float.sin (ft -. Float.pi /. 2.) in
+    let normalized = (raw +. 1.) /. 2. in
+    let xt = iof ((fx1 +. normalized *. fdx) *. (foi ss)) in
+    let yt = iof ((fy1 +. normalized *. fdy) *. (foi ss)) in
+    clear_graph ();
+    draw_image image 0 0;
+    fill_circle (xt + ss / 2) (yt + ss / 2) (ss / 3);
+    Unix.sleepf (0.005 *. ia_wait)
+  done
 
 let init = 
   open_graph "";
@@ -195,19 +220,23 @@ let all_moves state player n replay =
 let apply_move state pawn move =
   let remove_pawn pawns pawn = List.filter ((<>) pawn) pawns in
   let pawns = remove_pawn state.pawns pawn in
+  let draw' = draw_movement {state with pawns} in
   let set_pos pawn position = {pawn with position} in
   let set_pawns state pawns = {state with pawns} in
   let replay p = if is_rose p then Some p else None in
   match move with
     | Finish ->
+      draw' pawn (Outro 2); (* Dirty hack ew *)
       let add_point p = {p with points = p.points + 1} in
       if pawn.owner = P1 then
         {state with pawns; p1 = add_point state.p1}, None 
       else
         {state with pawns; p2 = add_point state.p2}, None
     | Move pos ->
+      draw' pawn pos;
       set_pawns state ((set_pos pawn pos) :: pawns), replay pos
     | Take p' ->
+      draw' pawn p'.position;
       let add_reserve p = {p with reserve = p.reserve + 1} in
       let state = if pawn.owner = P2 then
         {state with pawns; p1 = add_reserve state.p1}
@@ -217,6 +246,7 @@ let apply_move state pawn move =
       let pawns' = remove_pawn pawns p' in
       set_pawns state ((set_pos pawn p'.position) :: pawns'), replay p'.position
     | Add ->
+      draw' {pawn with position = Reserve} pawn.position;
       let remove_reserve p = {p with reserve = p.reserve - 1} in
       let state = if pawn.owner = P1 then
         {state with pawns; p1 = remove_reserve state.p1}
@@ -275,14 +305,7 @@ let common_ai sub am =
   if am = [] then begin
     draw_info 1 magenta "IA cannot move !";
     Unix.sleepf ia_wait; None
-  end else begin
-    let choice = sub am in
-    set_color green;
-    let x, y = pawn_to_coord (fst choice) in
-    draw_circle_grid x y 5;
-    draw_info 1 magenta "AI chooses to move this pawn";
-    Unix.sleepf ia_wait; Some choice
-  end
+  end else Some (sub am)
 
 let basic_ai =
     let pos_compare = compare in
