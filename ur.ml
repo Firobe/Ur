@@ -1,5 +1,6 @@
 open Common 
 
+module Game (D : IO) = struct
 (* ==== MOVEMENT ==== *)
 
 let is_rose = function
@@ -63,7 +64,7 @@ let all_moves state player n replay =
 let apply_move state pawn move =
   let remove_pawn pawns pawn = List.filter ((<>) pawn) pawns in
   let pawns = remove_pawn state.pawns pawn in
-  let draw' = Display.draw_movement {state with pawns} in
+  let draw' = D.draw_movement {state with pawns} in
   let set_pos pawn position = {pawn with position} in
   let set_pawns state pawns = {state with pawns} in
   let replay p = if is_rose p then Some p else None in
@@ -113,14 +114,14 @@ let check_end state =
 
 let rec play state player =
   match check_end state with
-  | Some p -> Display.draw_victory state p
+  | Some p -> D.draw_victory state p
   | None ->
     let p = if player = P1 then state.p1 else state.p2 in
     let next_player = if player = P1 then P2 else P1 in
     let rec play_once state replay =
       let n = throw_dices () in
-      Display.draw_state state;
-      Display.draw_dice player n;
+      D.draw_state state;
+      D.draw_dice player n;
       let am = all_moves state player n replay in
       match p.choose am with
       | None -> state
@@ -137,7 +138,7 @@ let rec play state player =
 
 let common_ai sub am =
   if am = [] then begin
-    Display.draw_ia_cannot_move (); None
+    D.draw_ia_cannot_move (); None
   end else Some (sub am)
 
 let basic_ai =
@@ -169,19 +170,26 @@ let random_ai =
   let sub am = List.nth am @@ Random.int (List.length am) in
   common_ai sub
 
-let main =
+let go () =
+  D.init ();
   Random.self_init ();
   let default_player = {
     reserve = max_pawns;
     points = 0;
-    choose = Display.ask_draw 
+    choose = D.ask_draw 
   } in
   let state = {
     p1 = {default_player with
           choose =
             if auto_mode then random_ai
-            else Display.ask_draw};
+            else D.ask_draw};
     p2 = {default_player with choose = basic_ai};
     pawns = []
   } in play state P1;
-  Display.terminate ()
+  D.terminate ()
+
+end
+
+let _ =
+  let module FullGame = Game (Legacy) in
+  FullGame.go ()

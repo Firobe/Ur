@@ -101,7 +101,7 @@ let draw_ia_cannot_move () =
   draw_info 1 magenta "IA cannot move !";
   Unix.sleepf ia_wait
 
-let init = 
+let init () = 
   open_graph "";
   resize_window (ss * 9) (ss * 4)
 

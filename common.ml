@@ -26,10 +26,12 @@ type move =
   | Take of pawn
   | Finish
 
+type choice_function = (pawn * move) list -> (pawn * move) option
+
 type player = {
   reserve : int;
   points : int;
-  choose : (pawn * move) list -> (pawn * move) option
+  choose : choice_function
 }
 
 type state = {
@@ -38,3 +40,16 @@ type state = {
   pawns : pawn list;
 }
 
+type color = int
+
+module type IO = sig
+  val draw_state : state -> unit
+  val draw_info : int -> color -> string -> unit
+  val draw_movement : state -> pawn -> position -> unit
+  val draw_victory : state -> playerNo -> unit
+  val draw_dice : playerNo -> int -> unit
+  val draw_ia_cannot_move : unit -> unit
+  val init : unit -> unit
+  val terminate : unit -> unit
+  val ask_draw : choice_function
+end
