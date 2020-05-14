@@ -1,2 +1,2 @@
 (executable (name ur)
-(libraries graphics unix))
+(libraries threads))
