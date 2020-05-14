@@ -1,8 +1,10 @@
 open Game
 open State
 
+module ADisplay = Display.Make (Sfml)
+
 let rec game_loop state =
-  Display.sync state;
+  ADisplay.sync state;
   if state <> End then begin
     (* get inputs *)
     let state' = State.reducer state in
@@ -27,8 +29,8 @@ let init_state =
 
 let go () =
   Random.self_init ();
-  Display.init init_state;
+  ADisplay.init init_state;
   game_loop init_state;
-  Display.terminate ()
+  ADisplay.terminate ()
 
 let _ = go ()

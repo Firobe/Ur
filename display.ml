@@ -1,27 +1,26 @@
-let channel = Event.new_channel ()
+module type DISPLAY_ENGINE = sig
+  val start : (State.t -> State.t) -> State.t -> unit
+end
 
-let sync state =
-  Event.send channel state |> Event.sync
+module Make (Engine : DISPLAY_ENGINE) = struct
+  let channel = Event.new_channel ()
 
-let thread = ref None
+  let sync state =
+    Event.send channel state |> Event.sync
 
-let rec display_loop state =
-  let state = match Event.receive channel |> Event.poll with
+  let thread = ref None
+
+  let update_state state =
+    match Event.receive channel |> Event.poll with
     | None -> state
     | Some s -> s
-  in
 
-  match state with 
-  | State.Playing game ->
-    Format.printf "Display : %a@." Game.Gameplay.pp_state game.gameplay;
-    display_loop state
-  | State.End -> Printf.printf "End of display loop\n"
+  let init state =
+    let start_thread () = Engine.start update_state state in
+    thread := Some (Thread.create start_thread ())
 
-let init state =
-  thread := Some (Thread.create display_loop state)
-
-let terminate () =
-  match !thread with
-  | None -> failwith "Display was never initialized!"
-  | Some t -> Thread.join t
-
+  let terminate () =
+    match !thread with
+    | None -> failwith "Display was never initialized!"
+    | Some t -> Thread.join t
+end
