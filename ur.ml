@@ -26,11 +26,12 @@ let init_state =
   let game = {logic; gameplay} in
   Playing game
 
-
 let go () =
   Random.self_init ();
   ADisplay.init init_state;
   game_loop init_state;
-  ADisplay.terminate ()
+  Format.printf "End of logic loop@.";
+  ADisplay.terminate ();
+  Format.printf "Terminated normally@."
 
 let _ = go ()
