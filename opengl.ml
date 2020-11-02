@@ -15,9 +15,9 @@ let set_3d ba i x y z =
 let triangle = {
   Geometry.vertices = (
     let vs = bigarray_create Bigarray.float32 (3 * 3) in
-    set_3d vs 0 (-0.8) (-0.8) 0.0;
-    set_3d vs 1 0.8    (-0.8) 0.0;
-    set_3d vs 2 0.0    0.8    0.0;
+    set_3d vs 0 (-1.0) (-1.0) 0.0;
+    set_3d vs 1 1.0    (-1.0) 0.0;
+    set_3d vs 2 0.0    1.0    0.0;
     vs);
   colors = (
     let cs = bigarray_create Bigarray.float32 (3 * 3) in
@@ -61,6 +61,7 @@ let process_events context =
   (* let key_scancode e = Sdl.Scancode.enum Sdl.Event.(get e keyboard_scancode) in *)
   let event e = Sdl.Event.(enum (get e typ)) in
   let window_event e = Sdl.Event.(window_event_enum (get e window_event_id)) in
+  let should_redraw = ref false in
   while Sdl.poll_event (Some e) do
     begin match event e with
       | `Quit ->
@@ -71,28 +72,35 @@ let process_events context =
         begin match window_event e with
           | `Exposed | `Resized ->
             let w, h = Sdl.get_window_size context.win in
-            reshape context.win w h
+            reshape context.win w h;
+            should_redraw := true;
           | _ -> ()
         end
       | _ -> ()
     end
-  done
+  done;
+  !should_redraw
 
 let draw_playing _game context =
   draw context.pid context.geometry.gid context.win
 
+let draw_state state context = match state with
+  | State.Playing g -> draw_playing g context
+  | _ -> ()
+
 let rec loop state context =
-  process_events context;
+  let should_redraw = process_events context in
   context.send_inputs ();
   match context.poll_state () with
-  | Some new_state -> begin match new_state with
-      | State.Playing game ->
-        draw_playing game context;
-        loop new_state context
-      | State.End ->
-        Format.printf "End of display loop@."; Ok context
-    end
-  | None -> loop state context
+  | Some new_state ->
+    draw_state new_state context;
+    if new_state = State.End then (
+      Format.printf "End of display loop@.";
+      Ok context
+    ) else loop new_state context
+  | None ->
+    if should_redraw then draw_state state context;
+    loop state context
 
 let init () =
   let* _ = Sdl.init Sdl.Init.video in
