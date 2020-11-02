@@ -6,6 +6,7 @@ let ( let* ) x f = match x with
   | Error _ as e -> e
 
 let bigarray_create k len = Bigarray.(Array1.create k c_layout len)
+let bigarray_of k a = Bigarray.(Array1.of_array k c_layout a)
 
 let set_int =
   let a = bigarray_create Bigarray.int32 1 in
