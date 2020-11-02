@@ -1,7 +1,7 @@
 open Game
 open State
 
-module ADisplay = Display.Make (Sfml)
+module ADisplay = Display.Make (Opengl)
 
 let rec game_loop state =
   ADisplay.sync state;

@@ -1,3 +1,2 @@
 (executable (name ur)
-(libraries threads sfml.window sfml.graphics)
-(flags (-w -58) (-cclib -lstdc++)))
+(libraries threads tgls.tgl4 tsdl))

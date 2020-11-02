@@ -1,5 +1,5 @@
 module type DISPLAY_ENGINE = sig
-  val start : (State.t -> State.t) -> State.t -> unit
+  val start : (unit -> State.t option) -> State.t -> unit
 end
 
 module Make (Engine : DISPLAY_ENGINE) = struct
@@ -10,13 +10,10 @@ module Make (Engine : DISPLAY_ENGINE) = struct
 
   let thread = ref None
 
-  let update_state state =
-    match Event.receive channel |> Event.poll with
-    | None -> state
-    | Some s -> s
+  let poll_state () = Event.receive channel |> Event.poll
 
   let init state =
-    let start_thread () = Engine.start update_state state in
+    let start_thread () = Engine.start poll_state state in
     thread := Some (Thread.create start_thread ())
 
   let terminate () =

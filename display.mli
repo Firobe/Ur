@@ -1,5 +1,5 @@
 module type DISPLAY_ENGINE = sig
-  val start : (State.t -> State.t) -> State.t -> unit
+  val start : (unit -> State.t option) -> State.t -> unit
 end
 
 module Make : functor (_ : DISPLAY_ENGINE) -> sig
