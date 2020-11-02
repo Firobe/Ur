@@ -42,7 +42,7 @@ let create t =
     bids = [iid; vid; cid];
     length = Bigarray.Array1.dim t.indices;
     mode
-  } in Ok result
+  } in result
 
 let of_arrays (mode, v, c, i) =
   let raw = {
@@ -55,10 +55,16 @@ let of_arrays (mode, v, c, i) =
 
 let delete t =
   set_int (Gl.delete_vertex_arrays 1) t.gid;
-  List.iter delete_buffer t.bids;
-  Ok ()
+  List.iter delete_buffer t.bids
 
-let draw t =
+let draw ?(x=0.) ?(y=0.) ?(scalex=1.) ?(scaley=1.) pid t =
+  let matid = Gl.get_uniform_location pid "transMat" in
+  Gl.uniform_matrix4fv matid 1 false
+    (bigarray_of Bigarray.float32
+       [| scalex; 0.; 0.; 0.;
+          0.; scaley; 0.; 0.;
+          0.; 0.; 1.; 0.;
+          x; y; 0.; 1. |]);
   Gl.bind_vertex_array t.gid;
-  Gl.draw_elements Gl.line_strip t.length Gl.unsigned_byte (`Offset 0);
+  Gl.draw_elements t.mode t.length Gl.unsigned_byte (`Offset 0);
   Gl.bind_vertex_array 0;

@@ -43,10 +43,12 @@ let vertex_shader v = str "
   in vec3 vertex;
   in vec3 color;
   out vec4 v_color;
+  uniform mat4 transMat;
+
   void main()
   {
     v_color = vec4(color, 1.0);
-    gl_Position = vec4(vertex, 1.0);
+    gl_Position = transMat * vec4(vertex, 1.0);
   }" v
 
 let fragment_shader v = str "

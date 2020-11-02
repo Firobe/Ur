@@ -6,7 +6,7 @@ let has_quit inputs =
   List.exists ((=) Input.Quit) inputs
 
 let reducer state inputs =
-  Thread.delay 0.00001; match state with
+  Thread.delay 0.0001; match state with
   | Playing {gameplay = Victory _; _} -> End
   | Playing game ->
     if has_quit inputs then End
