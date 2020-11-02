@@ -22,7 +22,7 @@ module Logic = struct
     | Take of pawn
     | Finish
 
-  type choice_function = (pawn * move) list -> (pawn * move) option
+  type choice_function = (pawn * move) list -> int option
 
   type player = {
     reserve : int;
@@ -144,7 +144,7 @@ module AI = struct
   let basic_ai =
     let pos_compare = compare in
     let open Logic in
-    let sortfun x y = match (x, y) with
+    let sortfun (_, x) (_, y) = match (x, y) with
       | (_, Take {position=a; _}), (_, Take {position= b; _}) ->
         pos_compare a b
       | (_, Take _), _ -> 1
@@ -164,11 +164,16 @@ module AI = struct
       | (_, Move _), (_, Move (Intro _)) -> -1
       | (_, Move a), (_, Move b) -> pos_compare a b
     in
-    let sub am = List.sort sortfun am |> List.rev |> List.hd in
+    let sub am =
+      let v = am
+              |> List.mapi (fun i x -> (i, x))
+              |> List.sort sortfun |> List.rev |> List.hd in
+      fst v
+    in
     common_ai sub
 
   let random_ai : Logic.choice_function =
-    let sub am = List.nth am @@ Random.int (List.length am) in
+    let sub am = Random.int (List.length am) in
     common_ai sub
 end
 
@@ -197,7 +202,8 @@ module Gameplay = struct
     let next_player = if player = P1 then P2 else P1 in
     match p.choose am with
     | None -> (logic, Begin_turn next_player)
-    | Some (pawn, move) ->
+    | Some choice ->
+      let pawn, move = List.nth am choice in
       let logic', r = Logic.apply_move logic pawn move in
       begin match r with
         | None -> (logic', Begin_turn next_player)
