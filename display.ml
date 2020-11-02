@@ -1,6 +1,7 @@
 module type DISPLAY_ENGINE = sig
   val start : poll_state:(unit -> State.t option)
-           -> send_input:(Input.t -> unit)
+           -> buffer_input:(Input.t -> unit)
+           -> send_inputs:(unit -> unit)
            -> init_state:State.t
            -> unit
 end
@@ -15,20 +16,21 @@ module Make (Engine : DISPLAY_ENGINE) = struct
   let sync state =
     Event.send state_channel state |> Event.sync
 
-  let send_input input =
-    let acc = input :: !input_buffer in
-    match Event.send input_channel acc |> Event.poll with
+  let buffer_input input =
+    input_buffer := input :: !input_buffer
+
+  let send_inputs () =
+    match Event.send input_channel !input_buffer |> Event.poll with
     | Some () -> input_buffer := []
-    | None -> input_buffer := acc
+    | None -> ()
 
   let poll_state () = Event.receive state_channel |> Event.poll
-  let poll_input () =
-    match Event.receive input_channel |> Event.poll with
-    | Some l -> l
-    | None -> []
+
+  let wait_inputs () = Event.receive input_channel |> Event.sync
 
   let init init_state =
-    let start_thread () = Engine.start ~poll_state ~send_input ~init_state in
+    let start_thread () =
+      Engine.start ~poll_state ~buffer_input ~send_inputs ~init_state in
     thread := Some (Thread.create start_thread ())
 
   let terminate () =

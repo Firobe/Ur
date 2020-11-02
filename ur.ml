@@ -6,8 +6,8 @@ module ADisplay = Display.Make (Opengl)
 let rec game_loop state =
   ADisplay.sync state;
   if state <> End then begin
-    (* get inputs *)
-    let state' = State.reducer state in
+    let inputs = ADisplay.wait_inputs () in
+    let state' = State.reducer state inputs in
     game_loop state'
   end
 
