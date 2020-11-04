@@ -1,15 +1,36 @@
-type t =
+type kind =
   | Playing of Game.t
+  | Waiting of int * kind
   | End
+
+type t = {
+  kind : kind;
+  animations : Animation.t list;
+  has_waited : bool
+}
 
 let has_quit inputs =
   List.exists ((=) Input.Quit) inputs
 
 let reducer state inputs =
-  Thread.delay 0.0001; match state with
-  | Playing {gameplay = Victory _; _} -> End
-  | Playing game ->
-    if has_quit inputs then End
-    else Playing (Game.next game)
-  | End -> End
+  let animations = List.filter Animation.is_active state.animations in
+  let default kind = {kind; animations; has_waited = false} in
+  if has_quit inputs then default End 
+  else
+    match state.kind with
+    | Playing {gameplay = Victory _; _} -> default End
+    | Playing {gameplay = Play (_, choice); _} when not state.has_waited ->
+      let na = Animation.(create 0.5 (Pawn_moving choice)) in
+      let animations = na :: animations in
+      {kind = Waiting (na.id, state.kind); animations; has_waited = false}
+    | Waiting (aid, _) when List.exists Animation.(fun x -> x.id = aid) animations ->
+      {state with animations}
+    | Waiting (_, next) ->
+      {kind = next; animations; has_waited = true}
+    | Playing game ->
+      if has_quit inputs then default End
+      else 
+        let game' = Game.next game in
+        default (Playing game')
+    | End -> {state with animations}
 

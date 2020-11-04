@@ -32,13 +32,32 @@ let reshape _win w h =
 
 let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
 
-let draw_playing game context =
+let draw_playing game animations context =
   let open Game in
   clear_screen ();
   Gl.use_program context.pid;
   let viewid = Gl.get_uniform_location context.pid "view" in
   Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
-  List.iter (Pawn.draw context.pid context.objects.pawn) game.logic.pawns;
+  List.iter (fun pawn ->
+      match List.find_opt (fun a ->
+          match Animation.(a.kind) with
+          | Pawn_moving (mp, _) when mp = pawn -> true
+          | _ -> false) animations with
+      | None -> Pawn.draw context.pid context.objects.pawn pawn
+      | Some a ->
+        let progress = Animation.progress a in
+        Pawn.draw context.pid context.objects.pawn ~animate:progress pawn
+    ) game.logic.pawns;
+  List.iter (fun a ->
+      let open Animation in
+      match a.kind with
+      | Pawn_moving (p, Move position)
+      | Pawn_moving (p, Take {position; _}) ->
+        let p' = {p with position} in
+        let progress = 1. -. Animation.progress a in
+        Pawn.draw context.pid context.objects.pawn ~animate:progress p'
+      | _ -> ()
+    ) animations;
   Sdl.gl_swap_window context.win
 
 module Timer = struct
@@ -77,10 +96,14 @@ module Fps = struct
 end
 
 let draw_state state context =
+  let open State in
   Fps.check ();
-  match state with
-  | State.Playing g -> draw_playing g context
-  | _ -> ()
+  let rec f = function
+    | Playing g ->
+      draw_playing g state.animations context
+    | Waiting (_, k) -> f k
+    | _ -> ()
+  in f state.kind
 
 let quit context =
   Format.printf "User quit.@.";
@@ -116,7 +139,7 @@ let rec loop state context =
   match context.poll_state () with
   | Some new_state ->
     draw_state new_state context;
-    if new_state = State.End then (
+    if new_state.kind = State.End then (
       Format.printf "End of display loop@.";
       Ok context
     ) else loop new_state context
@@ -128,7 +151,7 @@ let init () =
   let* _ = Sdl.init Sdl.Init.video in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* pid = create_program (glsl_version gl) in
-  let* _ = Sdl.gl_set_swap_interval 1 in
+  let* _ = Sdl.gl_set_swap_interval 0 in
   let pawn = Pawn.create () in
   Ok (win, ctx, pid, pawn)
 

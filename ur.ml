@@ -5,7 +5,7 @@ module ADisplay = Display.Make (Opengl)
 
 let rec game_loop state =
   ADisplay.sync state;
-  if state <> End then begin
+  if state.kind <> End then begin
     let inputs = ADisplay.wait_inputs () in
     let state' = State.reducer state inputs in
     game_loop state'
@@ -24,7 +24,7 @@ let init_state =
     } in
   let gameplay = Gameplay.Begin_turn P1 in
   let game = {logic; gameplay} in
-  Playing game
+  {kind = Playing game; animations = []; has_waited = false}
 
 let go () =
   Random.self_init ();

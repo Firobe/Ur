@@ -180,13 +180,19 @@ end
 module Gameplay = struct
   type state =
     | Begin_turn of playerNo
-    | Wait_input of playerNo * int * (Logic.pawn * Logic.move) list
+    | Choose of playerNo * int * (Logic.pawn * Logic.move) list
+    | Play of playerNo * (Logic.pawn * Logic.move)
+    | Replay of playerNo * Logic.position
     | Victory of playerNo
 
   let pp_state fmt = function
     | Begin_turn p -> Format.fprintf fmt "begin %a" pp_player p
-    | Wait_input (p, _, _) -> Format.fprintf fmt "wait %a" pp_player p
+    | Choose (p, _, _) -> Format.fprintf fmt "wait %a" pp_player p
+    | Play (p, _) -> Format.fprintf fmt "play %a" pp_player p
+    | Replay (p, _) -> Format.fprintf fmt "replay %a" pp_player p
     | Victory p -> Format.fprintf fmt "victory %a" pp_player p
+
+  let next_player player = if player = P1 then P2 else P1
 
   let begin_turn player logic =
     match Logic.check_end logic with
@@ -194,30 +200,36 @@ module Gameplay = struct
     | None ->
       let n = Logic.throw_dices () in
       let am = Logic.all_moves logic player n in
-      (logic, Wait_input (player, n, am))
+      (logic, Choose (player, n, am))
 
   let wait_input player logic am =
     let open Logic in
     let p = if player = P1 then logic.p1 else logic.p2 in
-    let next_player = if player = P1 then P2 else P1 in
     match p.choose am with
-    | None -> (logic, Begin_turn next_player)
+    | None -> (logic, Begin_turn (next_player player))
     | Some choice ->
-      let pawn, move = List.nth am choice in
-      let logic', r = Logic.apply_move logic pawn move in
-      begin match r with
-        | None -> (logic', Begin_turn next_player)
-        | Some pos ->
-          let n = throw_dices () in
-          let pawn =
-            logic'.pawns
-            |> List.filter (fun p -> p.owner = player && p.position = pos)
-            |> List.hd in
-          begin match Logic.compute_move logic (pawn, n) with
-            | Some move -> (logic', Wait_input (player, n, [(pawn, move)]))
-            | None -> (logic', Begin_turn next_player)
-          end
-      end
+      let pm = List.nth am choice in
+      (logic, Play (player, pm))
+
+  let play player logic (pawn, move) =
+    let open Logic in
+    let logic', replay = apply_move logic pawn move in
+    begin match replay with
+      | None -> (logic', Begin_turn (next_player player))
+      | Some pos -> (logic', Replay (player, pos))
+    end
+
+  let replay player logic pos =
+    let open Logic in
+    let n = throw_dices () in
+    let pawn =
+      logic.pawns
+      |> List.filter (fun p -> p.owner = player && p.position = pos)
+      |> List.hd in
+    begin match compute_move logic (pawn, n) with
+      | Some move -> (logic, Choose (player, n, [(pawn, move)]))
+      | None -> (logic, Begin_turn (next_player player))
+    end
 
   let victory player logic = (logic, Victory player)
 end
@@ -230,6 +242,9 @@ type t = {
 let next game =
   let (logic, gameplay) = match game.gameplay with
   | Begin_turn p -> Gameplay.begin_turn p game.logic
-  | Wait_input (p, _, am) -> Gameplay.wait_input p game.logic am
+  | Choose (p, _, am) -> Gameplay.wait_input p game.logic am
+  | Play (p, pm) -> Gameplay.play p game.logic pm
+  | Replay (p, pos) -> Gameplay.replay p game.logic pos
   | Victory p -> Gameplay.victory p game.logic
-  in {logic; gameplay}
+  in
+  {logic; gameplay}
