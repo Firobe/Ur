@@ -19,24 +19,66 @@ type context = {
 }
 
 let gl = (4,4)
-let window_width = 800
-let window_height = 600
+
+let window_width = 8 * 100
+let window_height = 3 * 100
 
 let clear_screen () =
-  Gl.clear_color 0. 0. 0. 1.;
+  Gl.clear_color 0.5 0.5 0.5 1.;
   Gl.clear Gl.color_buffer_bit
 
 let reshape _win w h =
   Gl.viewport 0 0 w h
 
+let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
+
 let draw_playing game context =
   let open Game in
   clear_screen ();
   Gl.use_program context.pid;
+  let viewid = Gl.get_uniform_location context.pid "view" in
+  Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
   List.iter (Pawn.draw context.pid context.objects.pawn) game.logic.pawns;
   Sdl.gl_swap_window context.win
 
-let draw_state state context = match state with
+module Timer = struct
+  let time = Unix.gettimeofday
+  type t = {
+    last : float ref;
+    length : float;
+  }
+
+  let create length =
+    {last = ref (time ()); length}
+
+  let reset t = t.last := time ()
+  let check t =
+    if time () -. !(t.last) > t.length then (
+      reset t; true
+    ) else false
+end
+
+module Fps = struct
+  let frames = ref 0
+  let interval = 2.
+  let timer = Timer.create interval
+
+  let compute () =
+    let fps = (float !frames) /. interval in
+    frames := 0;
+    fps
+
+  let check () =
+    incr frames;
+    if Timer.check timer then (
+      let fps = compute () in
+      Format.printf "FPS: %.1f@." fps
+    )
+end
+
+let draw_state state context =
+  Fps.check ();
+  match state with
   | State.Playing g -> draw_playing g context
   | _ -> ()
 
@@ -86,6 +128,7 @@ let init () =
   let* _ = Sdl.init Sdl.Init.video in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* pid = create_program (glsl_version gl) in
+  let* _ = Sdl.gl_set_swap_interval 1 in
   let pawn = Pawn.create () in
   Ok (win, ctx, pid, pawn)
 

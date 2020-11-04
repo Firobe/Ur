@@ -57,14 +57,9 @@ let delete t =
   set_int (Gl.delete_vertex_arrays 1) t.gid;
   List.iter delete_buffer t.bids
 
-let draw ?(x=0.) ?(y=0.) ?(scalex=1.) ?(scaley=1.) pid t =
-  let matid = Gl.get_uniform_location pid "transMat" in
-  Gl.uniform_matrix4fv matid 1 false
-    (bigarray_of Bigarray.float32
-       [| scalex; 0.; 0.; 0.;
-          0.; scaley; 0.; 0.;
-          0.; 0.; 1.; 0.;
-          x; y; 0.; 1. |]);
+let draw ?(trans=Matrix.identity) pid t =
+  let matid = Gl.get_uniform_location pid "model" in
+  Gl.uniform_matrix4fv matid 1 false (Matrix.raw trans);
   Gl.bind_vertex_array t.gid;
   Gl.draw_elements t.mode t.length Gl.unsigned_byte (`Offset 0);
   Gl.bind_vertex_array 0;
