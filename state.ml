@@ -17,20 +17,20 @@ let reducer state inputs =
   let default kind = {kind; animations; has_waited = false} in
   if has_quit inputs then default End 
   else
-    match state.kind with
+    let rec f s = match s.kind with
     | Playing {gameplay = Victory _; _} -> default End
-    | Playing {gameplay = Play (_, choice); _} when not state.has_waited ->
-      let na = Animation.(create 0.5 (Pawn_moving choice)) in
+    | Playing {gameplay = Play (_, choice); _} when not s.has_waited ->
+      let na = Animation.(create 0.7 (Pawn_moving choice)) in
       let animations = na :: animations in
-      {kind = Waiting (na.id, state.kind); animations; has_waited = false}
+      {kind = Waiting (na.id, s.kind); animations; has_waited = false}
     | Waiting (aid, _) when List.exists Animation.(fun x -> x.id = aid) animations ->
-      {state with animations}
-    | Waiting (_, next) ->
-      {kind = next; animations; has_waited = true}
+      {s with animations}
+    | Waiting (_, next) -> f {kind = next; animations; has_waited = true}
     | Playing game ->
       if has_quit inputs then default End
       else 
         let game' = Game.next game in
         default (Playing game')
-    | End -> {state with animations}
+    | End -> {s with animations}
+    in f state
 

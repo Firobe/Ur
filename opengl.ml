@@ -34,28 +34,28 @@ let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
 
 let draw_playing game animations context =
   let open Game in
+  let open Animation in
   clear_screen ();
   Gl.use_program context.pid;
   let viewid = Gl.get_uniform_location context.pid "view" in
   Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
-  List.iter (fun pawn ->
-      match List.find_opt (fun a ->
-          match Animation.(a.kind) with
+  let normal_pawns = List.filter (fun pawn -> 
+      not @@ List.exists (fun a ->
+          match a.kind with
           | Pawn_moving (mp, _) when mp = pawn -> true
-          | _ -> false) animations with
-      | None -> Pawn.draw context.pid context.objects.pawn pawn
-      | Some a ->
-        let progress = Animation.progress a in
-        Pawn.draw context.pid context.objects.pawn ~animate:progress pawn
-    ) game.logic.pawns;
+          | _ -> false
+        ) animations
+    ) game.logic.pawns in
+  List.iter (Pawn.draw context.pid context.objects.pawn) normal_pawns;
   List.iter (fun a ->
-      let open Animation in
-      match a.kind with
+      let d orig dest =
+        let progress = Animation.progress a in
+        Pawn.draw context.pid context.objects.pawn ~animate:(dest, progress) orig
+      in match a.kind with
       | Pawn_moving (p, Move position)
-      | Pawn_moving (p, Take {position; _}) ->
-        let p' = {p with position} in
-        let progress = 1. -. Animation.progress a in
-        Pawn.draw context.pid context.objects.pawn ~animate:progress p'
+      | Pawn_moving (p, Take {position; _}) -> d p {p with position}
+      | Pawn_moving (p, Add) -> d {p with position = Reserve} p
+      | Pawn_moving (p, Finish) -> d p {p with position = Outro 2}
       | _ -> ()
     ) animations;
   Sdl.gl_swap_window context.win
@@ -96,8 +96,8 @@ module Fps = struct
 end
 
 let draw_state state context =
-  let open State in
   Fps.check ();
+  let open State in
   let rec f = function
     | Playing g ->
       draw_playing g state.animations context
@@ -133,8 +133,7 @@ let process_events context =
   !should_redraw
 
 let rec loop state context =
-  let _should_redraw = process_events context in
-  let should_redraw = true in (* force redraw for smooth fps *)
+  let should_redraw = process_events context in
   context.send_inputs ();
   match context.poll_state () with
   | Some new_state ->
