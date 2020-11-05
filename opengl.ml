@@ -48,14 +48,16 @@ let draw_playing game animations context =
     ) game.logic.pawns in
   List.iter (Pawn.draw context.pid context.objects.pawn) normal_pawns;
   List.iter (fun a ->
-      let d orig dest =
-        let progress = Animation.progress a in
-        Pawn.draw context.pid context.objects.pawn ~animate:(dest, progress) orig
+      let prog = Animation.progress a in
+      let d orig dest p =
+        Pawn.draw context.pid context.objects.pawn ~animate:(dest, p) orig
       in match a.kind with
-      | Pawn_moving (p, Move position)
-      | Pawn_moving (p, Take {position; _}) -> d p {p with position}
-      | Pawn_moving (p, Add) -> d {p with position = Reserve} p
-      | Pawn_moving (p, Finish) -> d p {p with position = Outro 2}
+      | Pawn_moving (p, Move position) 
+      | Pawn_moving (p, Take {position; _}) -> d p {p with position} prog
+      | Pawn_moving (p, Add) ->
+        d {p with position = Reserve} p (0.5 +. (prog /. 2.))
+      | Pawn_moving (p, Finish) ->
+        d p {p with position = Outro 2} (prog /. 2.)
       | _ -> ()
     ) animations;
   Sdl.gl_swap_window context.win
