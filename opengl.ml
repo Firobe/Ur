@@ -165,10 +165,14 @@ let rec loop state context =
 
 let init () =
   let* _ = Sdl.init Sdl.Init.video in
+  (* Enable antialiasing *)
+  let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplebuffers 1 in
+  let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* pid = create_program (glsl_version gl) in
   let* _ = Sdl.gl_set_swap_interval 0 in
   let pawn = Pawn.create () in
+  Gl.enable Gl.multisample;
   Ok (win, ctx, pid, pawn)
 
 let terminate context =
