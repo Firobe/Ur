@@ -1,3 +1,5 @@
+open Input
+
 type playerNo = P1 | P2
 
 let pp_player fmt = function
@@ -5,11 +7,7 @@ let pp_player fmt = function
     | P2 -> Format.fprintf fmt "blue"
 
 module Logic = struct 
-  type position =
-    | Reserve
-    | Intro of int (* [0-3] *)
-    | Main of int  (* [0-7] *)
-    | Outro of int (* [0-1] *)
+  type position = Input.position
 
   type pawn = {
     owner : playerNo;
@@ -22,12 +20,18 @@ module Logic = struct
     | Take of pawn
     | Finish
 
-  type choice_function = (pawn * move) list -> int option
+  type choice_function =
+    Input.t list -> (pawn * move) list ->
+    [`Choose of int | `Wait | `Cannot_choose]
+
+  type player_type =
+    | Human_player
+    | AI_player of choice_function
 
   type player = {
     reserve : int;
     points : int;
-    choose : choice_function
+    p_type : player_type;
   }
 
   type state = {
@@ -137,9 +141,10 @@ module Logic = struct
 end
 
 module AI = struct
-  let common_ai sub am =
-    if am = [] then begin None
-    end else Some (sub am)
+  let common_ai sub =
+    fun (_ : Input.t list) am ->
+      if am = [] then begin `Cannot_choose
+      end else `Choose (sub am)
 
   let basic_ai =
     let pos_compare = compare in
@@ -175,6 +180,27 @@ module AI = struct
   let random_ai : Logic.choice_function =
     let sub am = Random.int (List.length am) in
     common_ai sub
+
+  let find_list_index pred l =
+    let rec aux i = function
+      | [] -> None
+      | h :: _ when pred h -> Some i
+      | _ :: t -> aux (i + 1) t
+    in aux 0 l
+
+  let manual_choice inputs am =
+    let open Logic in
+    if am = [] then `Cannot_choose else
+      let pos_of_pawn pos ({position;_}, _) = pos = position in
+      let correct_input = function
+        | Input.Pawn p when List.exists (pos_of_pawn p) am -> true
+        | _ -> false
+      in
+      let the = function None -> assert false | Some x -> x in
+      match List.find_opt correct_input inputs with
+      | None -> `Wait
+      | Some Pawn p -> `Choose (the @@ find_list_index (pos_of_pawn p) am)
+      | _ -> assert false
 end
 
 module Gameplay = struct
@@ -202,14 +228,17 @@ module Gameplay = struct
       let am = Logic.all_moves logic player n in
       (logic, Choose (player, n, am))
 
-  let wait_input player logic am =
+  let wait_input inputs player n logic am =
     let open Logic in
     let p = if player = P1 then logic.p1 else logic.p2 in
-    match p.choose am with
-    | None -> (logic, Begin_turn (next_player player))
-    | Some choice ->
+    let f = match p.p_type with
+      | Human_player -> AI.manual_choice | AI_player f -> f in
+    match f inputs am with
+    | `Cannot_choose -> (logic, Begin_turn (next_player player))
+    | `Choose choice ->
       let pm = List.nth am choice in
       (logic, Play (player, pm))
+    | `Wait -> (logic, Choose (player, n, am))
 
   let play player logic (pawn, move) =
     let open Logic in
@@ -239,10 +268,10 @@ type t = {
   logic : Logic.state;
 }
 
-let next game =
+let next game inputs =
   let (logic, gameplay) = match game.gameplay with
   | Begin_turn p -> Gameplay.begin_turn p game.logic
-  | Choose (p, _, am) -> Gameplay.wait_input p game.logic am
+  | Choose (p, n, am) -> Gameplay.wait_input inputs p n game.logic am
   | Play (p, pm) -> Gameplay.play p game.logic pm
   | Replay (p, pos) -> Gameplay.replay p game.logic pos
   | Victory p -> Gameplay.victory p game.logic

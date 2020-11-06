@@ -20,8 +20,9 @@ type context = {
 
 let gl = (4,4)
 
-let window_width = 8 * 100
-let window_height = 3 * 100
+let square_size = 100
+let window_width = 8 * square_size
+let window_height = 3 * square_size
 
 let clear_screen () =
   Gl.clear_color 0.5 0.5 0.5 1.;
@@ -39,6 +40,14 @@ let draw_playing game animations context =
   Gl.use_program context.pid;
   let viewid = Gl.get_uniform_location context.pid "view" in
   Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
+  let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
+  begin match game.gameplay with
+  | Choose (p, _, choices) when (player p).p_type = Human_player ->
+    List.iter (fun (pawn, _) ->
+        Pawn.draw context.pid context.objects.pawn ~choice:true pawn
+      ) choices
+  | _ -> ()
+  end;
   let normal_pawns = List.filter (fun pawn -> 
       not @@ List.exists (fun a ->
           match a.kind with
@@ -119,6 +128,12 @@ let process_events context =
   let should_redraw = ref false in
   while Sdl.poll_event (Some e) do
     begin match event e with
+      | `Mouse_button_down when Sdl.Event.(get e mouse_button_button = Sdl.Button.left) ->
+        let open Sdl.Event in
+        let x = get e mouse_button_x / square_size in
+        let y = get e mouse_button_y / square_size in
+        let pos = Input.coord_to_pos x y in
+        context.buffer_input (Input.Pawn pos)
       | `Quit -> quit context
       | `Key_down when key_scancode e = `Escape -> quit context
       | `Window_event ->

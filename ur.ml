@@ -15,11 +15,11 @@ let init_state =
   let default_player = Logic.{
     reserve = max_pawns;
     points = 0;
-    choose = AI.random_ai
+    p_type = Human_player
   } in
   let logic = Logic.{
       p1 = default_player;
-      p2 = {default_player with choose = AI.basic_ai};
+      p2 = {default_player with p_type = AI_player AI.basic_ai};
       pawns = []
     } in
   let gameplay = Gameplay.Begin_turn P1 in

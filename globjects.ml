@@ -62,12 +62,13 @@ let circle r g b n =
   (Gl.triangle_fan, vertices, colors, indices)
 
 module Pawn = struct
-  type t = {p1: Geometry.t; p2: Geometry.t}
+  type t = {p1: Geometry.t; p2: Geometry.t; c: Geometry.t}
 
   let create () =
     let p1 = Geometry.of_arrays @@ circle 1.0 0. 0. 200 in
     let p2 = Geometry.of_arrays @@ circle 0. 0. 1. 200 in
-    {p1; p2}
+    let c = Geometry.of_arrays @@ circle 0. 1. 0. 200 in
+    {p1; p2; c}
 
   let pawn_to_float pawn =
     let pawn_to_coord = function
@@ -82,9 +83,11 @@ module Pawn = struct
     let nx, ny = pawn_to_coord pawn in
     float nx +. 0.5, float ny +. 0.5
 
-  let draw pid t ?animate pawn =
+  let draw pid t ?animate ?(choice = false) pawn =
     (* Grille 8 x 3 *)
-    let p = if Game.Logic.(pawn.owner) = P1 then t.p1 else t.p2 in
+    let p = if choice then t.c else
+      if Game.Logic.(pawn.owner) = P1 then t.p1 else t.p2 in
+    let def_scale = if choice then 0.45 else 0.4 in
     let x, y, prog = match animate with
       | None -> let x,y = pawn_to_float pawn in x, y, 0.
       | Some (pawn', prog) ->
@@ -98,7 +101,7 @@ module Pawn = struct
     let scafa = 1. +. cos (pi /. 2. +. pi *. prog) /. 3. in
     let trans =
       Matrix.translation x y 0.
-      |> Matrix.scale 0.4 0.4 0. 
+      |> Matrix.scale def_scale def_scale 0. 
       |> Matrix.scale scafa scafa 0.
     in Geometry.draw ~trans pid p
 

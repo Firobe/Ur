@@ -29,7 +29,7 @@ let reducer state inputs =
     | Playing game ->
       if has_quit inputs then default End
       else 
-        let game' = Game.next game in
+        let game' = Game.next game inputs in
         default (Playing game')
     | End -> {s with animations}
     in f state
