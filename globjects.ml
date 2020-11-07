@@ -67,7 +67,7 @@ module Pawn = struct
   let create () =
     let p1 = Geometry.of_arrays @@ circle 1.0 0. 0. 200 in
     let p2 = Geometry.of_arrays @@ circle 0. 0. 1. 200 in
-    let c = Geometry.of_arrays @@ circle 0. 1. 0. 200 in
+    let c = Geometry.of_arrays @@ circle 1. 1. 0. 200 in
     {p1; p2; c}
 
   let pawn_to_float pawn =

@@ -1,4 +1,5 @@
 type kind =
+  | Title
   | Wait
   | Pawn_moving of (Game.Logic.pawn * Game.Logic.move)
 
@@ -15,12 +16,14 @@ let is_active t =
 
 let new_id = ref 0
 
-let create length kind =
+let create ?(delay=0.) length kind =
   let id = !new_id in
   incr new_id;
-  let start = Unix.gettimeofday () in
+  let start = Unix.gettimeofday () +. delay in
   {id; length; start; kind}
 
 let progress t =
   let now = Unix.gettimeofday () in
-  (now -. t.start) /. t.length
+  if now < t.start then 0.
+  else if now > t.start +. t.length then 1.
+  else (now -. t.start) /. t.length

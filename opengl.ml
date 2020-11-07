@@ -24,14 +24,26 @@ let square_size = 100
 let window_width = 8 * square_size
 let window_height = 3 * square_size
 
-let clear_screen () =
-  Gl.clear_color 0.5 0.5 0.5 1.;
+let clear_screen ?(r=0.5) ?(g=0.5) ?(b=0.5) () =
+  Gl.clear_color r g b 1.;
   Gl.clear Gl.color_buffer_bit
 
 let reshape _win w h =
   Gl.viewport 0 0 w h
 
 let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
+
+let draw_title _game animations context =
+  let open Animation in
+  let ta = List.find_opt
+      (fun x -> match x.kind with Title -> true | _ -> false) animations in
+  begin match ta with
+    | None -> clear_screen ()
+    | Some t ->
+      let prog = (progress t) /. 2. in
+      clear_screen ~r:prog ~g:prog ~b:prog ()
+  end;
+  Sdl.gl_swap_window context.win
 
 let draw_playing game animations context =
   let open Game in
@@ -113,6 +125,8 @@ let draw_state state context =
     | Playing g ->
       draw_playing g state.animations context
     | Waiting (_, k) -> f k
+    | Title_screen g ->
+      draw_title g state.animations context
     | _ -> ()
   in f state.kind
 

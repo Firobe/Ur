@@ -24,7 +24,7 @@ let init_state =
     } in
   let gameplay = Gameplay.Begin_turn P1 in
   let game = {logic; gameplay} in
-  {kind = Playing game; animations = []; has_waited = false}
+  {kind = Title_screen game; animations = []; has_waited = false}
 
 let go () =
   Random.self_init ();
