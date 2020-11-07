@@ -1,7 +1,11 @@
+open Game
+open Game.Gameplay
+
 type kind =
-  | Title_screen of Game.t
+  | Title_screen
   | Playing of Game.t
   | Waiting of int * kind
+  | Victory_screen of playerNo
   | End
 
 type t = {
@@ -10,31 +14,66 @@ type t = {
   has_waited : bool
 }
 
+let pp fmt t =
+  Format.fprintf fmt "{has_waited=%B; animations[%d]; kind=%s"
+    t.has_waited (List.length t.animations)
+    (match t.kind with
+     | Title_screen -> "title"
+     | Victory_screen _ -> "victory"
+     | Playing _ -> "playing"
+     | Waiting _ -> "waiting"
+     | End -> "end"
+    )
+
 let has_quit inputs =
   List.exists ((=) Input.Quit) inputs
 
+type next_fun = ?animations:(Animation.t list) -> kind -> t
+
+let anim_once (next : next_fun) after anim state =
+  if state.has_waited then next after
+  else
+    let a = anim () in
+    let animations = a :: state.animations in
+    next ~animations (Waiting (a.id, state.kind))
+
+(* Victory *)
+let victory_reducer (next : next_fun) =
+  anim_once next End (fun () -> Animation.(create 1.0 Victory))
+
+(* Title screen *)
+let title_reducer (next : next_fun) =
+  anim_once next (Playing (Game.default_game ()))
+    (fun () -> Animation.(create 1.0 Title))
+
+(* Playing *)
+let playing_reducer (next : next_fun) state game inputs =
+  match game.gameplay with
+  | Game.Gameplay.Victory p -> next (Victory_screen p)
+  | Play (_, choice) when not state.has_waited ->
+    let na = Animation.(create 0.7 (Pawn_moving choice)) in
+    let animations = na :: state.animations in
+    next ~animations (Waiting (na.id, state.kind))
+  | _ -> 
+    let game' = Game.next game inputs in
+    next (Playing game')
+
+(* Main switch *)
 let reducer state inputs =
   let animations = List.filter Animation.is_active state.animations in
-  let default kind = {kind; animations; has_waited = false} in
-  if has_quit inputs then default End 
+  let state = {state with animations} in
+  if has_quit inputs then {state with kind = End; has_waited = false}
   else
-    let rec f s = match s.kind with
-      | Title_screen _ when not s.has_waited ->
-        let na = Animation.(create 1.0 Title) in
-        let animations = na :: animations in
-        {kind = Waiting (na.id, s.kind); animations; has_waited = false}
-      | Title_screen g -> default (Playing g)
-      | Playing {gameplay = Victory _; _} -> default End
-      | Playing {gameplay = Play (_, choice); _} when not s.has_waited ->
-        let na = Animation.(create 0.7 (Pawn_moving choice)) in
-        let animations = na :: animations in
-        {kind = Waiting (na.id, s.kind); animations; has_waited = false}
-      | Waiting (aid, _) when List.exists Animation.(fun x -> x.id = aid) animations ->
-        {s with animations}
-      | Waiting (_, next) -> f {kind = next; animations; has_waited = true}
-      | Playing game ->
-        let game' = Game.next game inputs in
-        default (Playing game')
-      | End -> {s with animations}
+    let rec f s =
+      let next ?(animations=s.animations) kind =
+        {kind; animations; has_waited = false}
+      in
+      match s.kind with
+      | Title_screen -> title_reducer next s
+      | Playing g -> playing_reducer next s g inputs
+      | Victory_screen _ -> victory_reducer next s
+      | Waiting (aid, _) when List.exists Animation.(fun x -> x.id = aid) animations -> s
+      | Waiting (_, next) -> f {s with kind = next; has_waited = true}
+      | End -> s
     in f state
 

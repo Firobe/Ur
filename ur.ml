@@ -1,4 +1,3 @@
-open Game
 open State
 
 module ADisplay = Display.Make (Opengl)
@@ -12,19 +11,7 @@ let rec game_loop state =
   end
 
 let init_state =
-  let default_player = Logic.{
-    reserve = max_pawns;
-    points = 0;
-    p_type = Human_player
-  } in
-  let logic = Logic.{
-      p1 = default_player;
-      p2 = {default_player with p_type = AI_player AI.basic_ai};
-      pawns = []
-    } in
-  let gameplay = Gameplay.Begin_turn P1 in
-  let game = {logic; gameplay} in
-  {kind = Title_screen game; animations = []; has_waited = false}
+  {kind = Title_screen; animations = []; has_waited = false}
 
 let go () =
   Random.self_init ();

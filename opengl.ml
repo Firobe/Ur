@@ -33,7 +33,7 @@ let reshape _win w h =
 
 let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
 
-let draw_title _game animations context =
+let draw_title animations context =
   let open Animation in
   let ta = List.find_opt
       (fun x -> match x.kind with Title -> true | _ -> false) animations in
@@ -42,6 +42,20 @@ let draw_title _game animations context =
     | Some t ->
       let prog = (progress t) /. 2. in
       clear_screen ~r:prog ~g:prog ~b:prog ()
+  end;
+  Sdl.gl_swap_window context.win
+
+let draw_victory player animations context =
+  let open Animation in
+  let ta = List.find_opt
+      (fun x -> match x.kind with Victory -> true | _ -> false) animations in
+  begin match ta with
+    | None -> clear_screen ()
+    | Some t ->
+      let prog = (progress t) /. 2. in
+      let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
+      let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
+      clear_screen ~r ~g:(0.5 -. prog) ~b ()
   end;
   Sdl.gl_swap_window context.win
 
@@ -125,8 +139,10 @@ let draw_state state context =
     | Playing g ->
       draw_playing g state.animations context
     | Waiting (_, k) -> f k
-    | Title_screen g ->
-      draw_title g state.animations context
+    | Title_screen ->
+      draw_title state.animations context
+    | Victory_screen p ->
+      draw_victory p state.animations context
     | _ -> ()
   in f state.kind
 

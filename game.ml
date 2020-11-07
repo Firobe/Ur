@@ -277,3 +277,17 @@ let next game inputs =
   | Victory p -> Gameplay.victory p game.logic
   in
   {logic; gameplay}
+
+let default_game () =
+  let default_player = Logic.{
+      reserve = max_pawns;
+      points = 0;
+      p_type = AI_player AI.basic_ai
+    } in
+  let logic = Logic.{
+      p1 = default_player;
+      p2 = {default_player with p_type = AI_player AI.basic_ai};
+      pawns = []
+    } in
+  let gameplay = Gameplay.Begin_turn P1 in
+  {logic; gameplay}
