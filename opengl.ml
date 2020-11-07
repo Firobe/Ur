@@ -8,9 +8,9 @@ let square_size = 100
 let board_width = 8
 let board_height = 3
 let board_offset_x = 2
-let board_offset_y = 2
-let board_margin_x = 2
-let board_margin_y = 2
+let board_offset_y = 1
+let board_margin_x = 1
+let board_margin_y = 1
 
 let window_width = (board_width + board_offset_x + board_margin_x) * square_size
 let window_height = (board_height + board_offset_y + board_margin_y) * square_size
@@ -91,6 +91,10 @@ let draw_playing game animations context =
   let viewid = Gl.get_uniform_location context.pid "view" in
   Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
   Board.draw context.pid context.objects.board;
+  Pawn.draw_reserve context.pid context.objects.pawn
+    ~x:0.2 ~y:(-0.3) game.logic.p1.reserve P1;
+  Pawn.draw_reserve context.pid context.objects.pawn
+    ~x:0.2 ~y:(3.3) game.logic.p2.reserve P2;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   begin match game.gameplay with
   | Choose (p, dices, choices) when (player p).p_type = Human_player ->

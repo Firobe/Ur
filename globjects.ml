@@ -167,6 +167,14 @@ module Pawn = struct
     let nx, ny = pawn_to_coord pawn in
     float nx +. 0.5, float ny +. 0.5
 
+  let draw_reserve pid t ~x ~y n player =
+    let p = if player = Game.P1 then t.p1 else t.p2 in
+    for i = 0 to n - 1 do
+      let trans = Matrix.translation (x +. (float i) *. 0.23) y 0.
+                  |> Matrix.scale 0.1 0.1 0. in
+      Geometry.draw ~trans pid p
+    done
+
   let draw pid t ?animate ?choice pawn =
     (* Grille 8 x 3 *)
     let p = match choice with
