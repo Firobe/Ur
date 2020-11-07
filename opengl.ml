@@ -4,6 +4,11 @@ open Glutils
 open Result
 open Globjects
 
+let print_fps = false
+let square_size = 100
+let window_width = 8 * square_size
+let window_height = 3 * square_size
+
 type objects = {
   pawn : Pawn.t;
 }
@@ -20,10 +25,6 @@ type context = {
 
 let gl = (4,4)
 
-let square_size = 100
-let window_width = 8 * square_size
-let window_height = 3 * square_size
-
 let clear_screen ?(r=0.5) ?(g=0.5) ?(b=0.5) () =
   Gl.clear_color r g b 1.;
   Gl.clear Gl.color_buffer_bit
@@ -33,26 +34,24 @@ let reshape _win w h =
 
 let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
 
-let draw_title animations context =
+let get_animation kind =
   let open Animation in
-  let ta = List.find_opt
-      (fun x -> match x.kind with Title -> true | _ -> false) animations in
-  begin match ta with
+  List.find_opt (fun x -> x.kind = kind)
+
+let draw_title animations context =
+  begin match get_animation Title animations with
     | None -> clear_screen ()
     | Some t ->
-      let prog = (progress t) /. 2. in
+      let prog = (Animation.progress t) /. 2. in
       clear_screen ~r:prog ~g:prog ~b:prog ()
   end;
   Sdl.gl_swap_window context.win
 
 let draw_victory player animations context =
-  let open Animation in
-  let ta = List.find_opt
-      (fun x -> match x.kind with Victory -> true | _ -> false) animations in
-  begin match ta with
+  begin match get_animation Victory animations with
     | None -> clear_screen ()
     | Some t ->
-      let prog = (progress t) /. 2. in
+      let prog = (Animation.progress t) /. 2. in
       let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
       let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
       clear_screen ~r ~g:(0.5 -. prog) ~b ()
@@ -70,7 +69,10 @@ let draw_playing game animations context =
   begin match game.gameplay with
   | Choose (p, _, choices) when (player p).p_type = Human_player ->
     List.iter (fun (pawn, _) ->
-        Pawn.draw context.pid context.objects.pawn ~choice:true pawn
+        let choice = begin match get_animation Choice animations with
+          | None -> 1.
+          | Some a -> Animation.progress a
+        end in Pawn.draw context.pid context.objects.pawn ~choice pawn
       ) choices
   | _ -> ()
   end;
@@ -133,7 +135,7 @@ module Fps = struct
 end
 
 let draw_state state context =
-  Fps.check ();
+  if print_fps then Fps.check ();
   let open State in
   let rec f = function
     | Playing g ->

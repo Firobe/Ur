@@ -3,6 +3,7 @@ type kind =
   | Wait
   | Pawn_moving of (Game.Logic.pawn * Game.Logic.move)
   | Victory
+  | Choice
 
 type t = {
   id : int;

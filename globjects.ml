@@ -83,11 +83,16 @@ module Pawn = struct
     let nx, ny = pawn_to_coord pawn in
     float nx +. 0.5, float ny +. 0.5
 
-  let draw pid t ?animate ?(choice = false) pawn =
+  let draw pid t ?animate ?choice pawn =
     (* Grille 8 x 3 *)
-    let p = if choice then t.c else
-      if Game.Logic.(pawn.owner) = P1 then t.p1 else t.p2 in
-    let def_scale = if choice then 0.45 else 0.4 in
+    let p = match choice with
+      | None -> if Game.Logic.(pawn.owner) = P1 then t.p1 else t.p2
+      | Some _ -> t.c
+    in
+    let def_scale = match choice with
+      | None -> 0.4
+      | Some x -> (1.5 -. (x /. 2.)) *. 0.45
+    in
     let x, y, prog = match animate with
       | None -> let x,y = pawn_to_float pawn in x, y, 0.
       | Some (pawn', prog) ->

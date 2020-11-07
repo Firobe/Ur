@@ -211,6 +211,14 @@ module Gameplay = struct
     | Replay of playerNo * Logic.position
     | Victory of playerNo
 
+  let is_similar_state t1 t2 = match t1, t2 with
+    | Begin_turn _, Begin_turn _ -> true
+    | Choose _, Choose _ -> true
+    | Play _, Play _ -> true
+    | Replay _, Replay _ -> true
+    | Victory _, Victory _ -> true
+    | _ -> false
+
   let pp_state fmt = function
     | Begin_turn p -> Format.fprintf fmt "begin %a" pp_player p
     | Choose (p, _, _) -> Format.fprintf fmt "wait %a" pp_player p
@@ -282,7 +290,7 @@ let default_game () =
   let default_player = Logic.{
       reserve = max_pawns;
       points = 0;
-      p_type = AI_player AI.basic_ai
+      p_type = Human_player
     } in
   let logic = Logic.{
       p1 = default_player;
