@@ -18,6 +18,7 @@ let window_height = (board_height + board_offset_y + board_margin_y) * square_si
 
 type objects = {
   pawn : Pawn.t;
+  board : Board.t;
 }
 
 type context = {
@@ -76,6 +77,7 @@ let draw_playing game animations context =
   Gl.use_program context.pid;
   let viewid = Gl.get_uniform_location context.pid "view" in
   Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix);
+  Board.draw context.pid context.objects.board;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   begin match game.gameplay with
   | Choose (p, _, choices) when (player p).p_type = Human_player ->
@@ -215,8 +217,9 @@ let init () =
   let* pid = create_program (glsl_version gl) in
   let* _ = Sdl.gl_set_swap_interval 0 in
   let pawn = Pawn.create () in
+  let board = Board.create () in
   Gl.enable Gl.multisample;
-  Ok (win, ctx, pid, pawn)
+  Ok (win, ctx, pid, pawn, board)
 
 let terminate context =
   let* _ = delete_program context.pid in
@@ -227,8 +230,8 @@ let terminate context =
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state =
   match begin
-    let* win, ctx, pid, pawn = init () in
-    let objects = {pawn} in
+    let* win, ctx, pid, pawn, board = init () in
+    let objects = {pawn; board} in
     let context = {win; ctx; pid; poll_state; buffer_input; send_inputs; objects} in
     let* last_context = loop init_state context in
     terminate last_context

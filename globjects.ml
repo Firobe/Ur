@@ -61,6 +61,60 @@ let circle r g b n =
   let indices = Array.init (n + 2) (fun x -> x) in
   (Gl.triangle_fan, vertices, colors, indices)
 
+module Board = struct
+  type t = Geometry.t
+
+  let create () =
+    let vertices =
+      Array.init (9 * 4 * 3) (fun i ->
+          let c = i / 3 in
+          let y = c / 9 in
+          let x = c mod 9 in
+          match i mod 3 with
+          | 0 -> float x
+          | 1 -> float y
+          | _ -> 0.
+        )
+    in
+    let colors = Array.make (Array.length vertices) 1. in
+    let c x y = x + 9 * y in
+    let indices =
+      [|
+        (* Horizontal : bas en haut *)
+        c 0 0; c 4 0;
+        c 6 0; c 8 0;
+        c 0 1; c 8 1;
+        c 0 2; c 8 2;
+        c 0 3; c 4 3;
+        c 6 3; c 8 3;
+        (* Vertical : gauche à droite *)
+        c 0 0; c 0 3;
+        c 1 0; c 1 3;
+        c 2 0; c 2 3;
+        c 3 0; c 3 3;
+        c 4 0; c 4 3;
+        c 5 1; c 5 2;
+        c 6 0; c 6 3;
+        c 7 0; c 7 3;
+        c 8 0; c 8 3;
+        (* Rosaces : haut en bas*)
+        c 0 0; c 1 1;
+        c 0 1; c 1 0;
+        c 3 1; c 4 2;
+        c 3 2; c 4 1;
+        c 0 2; c 1 3;
+        c 0 3; c 1 2;
+      |]
+    in
+    Geometry.of_arrays (Gl.lines, vertices, colors, indices)
+
+  let draw pid t =
+    Geometry.draw pid t
+
+  let delete t =
+    Geometry.delete t
+end
+
 module Pawn = struct
   type t = {p1: Geometry.t; p2: Geometry.t; c: Geometry.t}
 
@@ -112,5 +166,6 @@ module Pawn = struct
 
   let delete t =
     Geometry.delete t.p1;
-    Geometry.delete t.p2
+    Geometry.delete t.p2;
+    Geometry.delete t.c
 end
