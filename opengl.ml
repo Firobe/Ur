@@ -177,7 +177,7 @@ let draw_state state context =
     | Playing g ->
       draw_playing g state.animations context
     (* Victory screen *)
-    | Waiting (_, Victory_screen p, _) 
+    | Waiting (_, _, Victory_screen p) 
     | Victory_screen p ->
       draw_victory p state.animations context
     | _ -> ()
