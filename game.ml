@@ -45,7 +45,7 @@ module Logic = struct
   let is_rose = function
     | Intro x -> x = 3
     | Main x -> x = 3
-    | Outro _
+    | Outro x -> x = 1
     | Reserve -> false
 
   (* pre : n <= 4 *)

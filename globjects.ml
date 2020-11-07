@@ -100,10 +100,14 @@ module Board = struct
         (* Rosaces : haut en bas*)
         c 0 0; c 1 1;
         c 0 1; c 1 0;
+        c 6 0; c 7 1;
+        c 6 1; c 7 0;
         c 3 1; c 4 2;
         c 3 2; c 4 1;
         c 0 2; c 1 3;
         c 0 3; c 1 2;
+        c 6 2; c 7 3;
+        c 6 3; c 7 2;
       |]
     in
     Geometry.of_arrays (Gl.lines, vertices, colors, indices)
