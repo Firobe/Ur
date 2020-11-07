@@ -164,12 +164,20 @@ end
 let draw_state state context =
   if print_fps then Fps.check ();
   let open State in
-  let rec f = function
-    | Playing g ->
-      draw_playing g state.animations context
-    | Waiting (_, k) -> f k
+  let f = function
+    (* Title screen *)
+    | Waiting (_, Title_screen, _) 
     | Title_screen ->
       draw_title state.animations context
+    (* Computation only frames *)
+    | Playing {gameplay = Play _; _}
+    | Playing {gameplay = Replay _; _} -> ()
+    (* Actual game *)
+    | Waiting (_, _, Playing g) 
+    | Playing g ->
+      draw_playing g state.animations context
+    (* Victory screen *)
+    | Waiting (_, Victory_screen p, _) 
     | Victory_screen p ->
       draw_victory p state.animations context
     | _ -> ()

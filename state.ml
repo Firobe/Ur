@@ -5,18 +5,18 @@ let move_time = 0.3
 let title_time = 1.0
 let victory_time = 2.0
 let choice_time = 0.1
+let debug = false
 
 type kind =
   | Title_screen
   | Playing of Game.t
-  | Waiting of int * kind
+  | Waiting of int * kind * kind
   | Victory_screen of playerNo
   | End
 
 type t = {
   kind : kind;
   animations : Animation.t list;
-  has_waited : bool
 }
 
 let is_same_kind k1 k2 = match k1, k2 with
@@ -29,76 +29,80 @@ let is_same_kind k1 k2 = match k1, k2 with
   | _ -> false
 
 let pp fmt t =
-  Format.fprintf fmt "{has_waited=%B; animations[%d]; kind=%s"
-    t.has_waited (List.length t.animations)
-    (match t.kind with
-     | Title_screen -> "title"
-     | Victory_screen _ -> "victory"
-     | Playing _ -> "playing"
-     | Waiting _ -> "waiting"
-     | End -> "end"
-    )
+  let fp = Format.fprintf in
+  fp fmt "{animations[%d]; kind=%a}"
+    (List.length t.animations)
+    (fun fmt -> function
+     | Title_screen -> fp fmt "title"
+     | Victory_screen _ -> fp fmt "victory"
+     | Playing g -> fp fmt "playing (%a)" Game.Gameplay.pp_state g.gameplay
+     | Waiting _ -> fp fmt "waiting"
+     | End -> fp fmt "end"
+    ) t.kind
 
 let has_quit inputs =
   List.exists ((=) Input.Quit) inputs
 
 type next_fun = ?animations:(Animation.t list) -> kind -> t
 
-let anim_once (next : next_fun) after anim state =
-  if state.has_waited then
-    let after' = next after in
-    if is_same_kind after'.kind state.kind then {after' with has_waited = true}
-    else after'
-  else
-    let a = anim () in
-    let animations = a :: state.animations in
-    next ~animations (Waiting (a.id, state.kind))
-
 (* Victory *)
 let victory_reducer (next : next_fun) =
-  anim_once next End (fun () -> Animation.(create victory_time Victory))
+  next End
 
 (* Title screen *)
 let title_reducer (next : next_fun) =
-  anim_once next (Playing (Game.default_game ()))
-    (fun () -> Animation.(create title_time Title))
+  next (Playing (Game.default_game ()))
 
 (* Playing *)
-let playing_reducer (next : next_fun) state game inputs =
+let playing_reducer (next : next_fun) game inputs =
   match game.gameplay with
   | Game.Gameplay.Victory p -> next (Victory_screen p)
-  | Play (_, choice) ->
-    let after = Game.next game inputs in
-    anim_once next (Playing after)
-      (fun () -> Animation.(create move_time (Pawn_moving choice))) state
-  | Choose (p, _, _) ->
-    let after = Game.next game inputs in
-    begin match (if p = P1 then game.logic.p1 else game.logic.p2).p_type with
-      | Game.Logic.Human_player ->
-        anim_once next (Playing after)
-          (fun () -> Animation.(create choice_time Choice)) state
-      | _ -> next (Playing after)
-    end
   | _ -> 
     let game' = Game.next game inputs in
     next (Playing game')
+
+let transition_trigger state new_state =
+  let wait_anim anim =
+    let animations = anim :: new_state.animations in
+    {kind = Waiting (anim.id, state.kind, new_state.kind); animations}
+  in
+  match state.kind, new_state.kind with
+  | Title_screen, Playing _ ->
+    wait_anim Animation.(create title_time Title)
+  | Playing _, Victory_screen _ ->
+    wait_anim Animation.(create victory_time Victory)
+  | Playing {gameplay = Choose _; _}, Playing {gameplay = Play (_, choice); _} ->
+    wait_anim Animation.(create move_time (Pawn_moving choice))
+  | Playing {gameplay = Begin_turn _; _}, Playing ({gameplay = Choose (p, _, _); _} as g)
+  | Playing {gameplay = Replay _; _}, Playing ({gameplay = Choose (p, _, _) ; _} as g) ->
+    let player = if p = P1 then g.logic.p1 else g.logic.p2 in
+    begin match player.p_type with
+      | Human_player -> wait_anim Animation.(create choice_time Choice)
+      | _ -> new_state
+    end
+  | _ -> new_state
+
+(* Waiting *)
+let waiting_reducer state aid _old next =
+  let b = List.exists Animation.(fun x -> x.id = aid) state.animations in
+  if b then state else {state with kind = next}
 
 (* Main switch *)
 let reducer state inputs =
   let animations = List.filter Animation.is_active state.animations in
   let state = {state with animations} in
-  if has_quit inputs then {state with kind = End; has_waited = false}
+  if has_quit inputs then {state with kind = End}
   else
-    let rec f s =
-      let next ?(animations=s.animations) kind =
-        {kind; animations; has_waited = false}
-      in
-      match s.kind with
-      | Title_screen -> title_reducer next s
-      | Playing g -> playing_reducer next s g inputs
-      | Victory_screen _ -> victory_reducer next s
-      | Waiting (aid, _) when List.exists Animation.(fun x -> x.id = aid) animations -> s
-      | Waiting (_, next) -> f {s with kind = next; has_waited = true}
-      | End -> s
-    in f state
+    let next ?(animations=state.animations) kind =
+      {kind; animations}
+    in
+    let new_state = match state.kind with
+      | Title_screen -> title_reducer next
+      | Playing g -> playing_reducer next g inputs
+      | Victory_screen _ -> victory_reducer next
+      | Waiting (aid, old, next) -> waiting_reducer state aid old next
+      | End -> state
+    in
+    if debug then Format.printf "%a -> %a@." pp state pp new_state;
+    transition_trigger state new_state
 

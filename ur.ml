@@ -11,7 +11,7 @@ let rec game_loop state =
   end
 
 let init_state =
-  {kind = Title_screen; animations = []; has_waited = false}
+  {kind = Title_screen; animations = []}
 
 let go () =
   Random.self_init ();
