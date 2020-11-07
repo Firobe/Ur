@@ -4,7 +4,6 @@ open Glutils
 open Result
 open Globjects
 
-let print_fps = false
 let square_size = 100
 let board_width = 8
 let board_height = 3
@@ -15,6 +14,8 @@ let board_margin_y = 2
 
 let window_width = (board_width + board_offset_x + board_margin_x) * square_size
 let window_height = (board_height + board_offset_y + board_margin_y) * square_size
+
+let print_fps = true 
 
 type objects = {
   pawn : Pawn.t;
@@ -145,7 +146,7 @@ end
 
 module Fps = struct
   let frames = ref 0
-  let interval = 2.
+  let interval = 5.
   let timer = Timer.create interval
 
   let compute () =
