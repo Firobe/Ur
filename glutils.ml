@@ -100,7 +100,7 @@ let pp_opengl_info ppf () =
   pp ppf "@]"
 
 let create_window ~gl:(maj, min) ~w ~h =
-  let w_atts = Sdl.Window.(opengl + resizable) in
+  let w_atts = Sdl.Window.(opengl (*+ resizable*)) in
   let w_title = Printf.sprintf "OpenGL %d.%d (core profile)" maj min in
   let set a v = Sdl.gl_set_attribute a v in
   let* _ = set Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core in
