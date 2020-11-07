@@ -137,7 +137,9 @@ module Logic = struct
     let throw () =
       if Random.bool () then 1 else 0
     in
-    throw () + throw () + throw () + throw ()
+    let tb x = (x = 1) in
+    let t1, t2, t3, t4 = throw (), throw (), throw (), throw () in
+    t1 + t2 + t3 + t4, (tb t1, tb t2, tb t3, tb t4)
 end
 
 module AI = struct
@@ -206,7 +208,7 @@ end
 module Gameplay = struct
   type state =
     | Begin_turn of playerNo
-    | Choose of playerNo * int * (Logic.pawn * Logic.move) list
+    | Choose of playerNo * (bool * bool * bool * bool) * (Logic.pawn * Logic.move) list
     | Play of playerNo * (Logic.pawn * Logic.move)
     | Replay of playerNo * Logic.position
     | Victory of playerNo
@@ -232,11 +234,11 @@ module Gameplay = struct
     match Logic.check_end logic with
     | Some p -> (logic, Victory p)
     | None ->
-      let n = Logic.throw_dices () in
+      let n, dices = Logic.throw_dices () in
       let am = Logic.all_moves logic player n in
-      (logic, Choose (player, n, am))
+      (logic, Choose (player, dices, am))
 
-  let wait_input inputs player n logic am =
+  let wait_input inputs player dices logic am =
     let open Logic in
     let p = if player = P1 then logic.p1 else logic.p2 in
     let f = match p.p_type with
@@ -246,7 +248,7 @@ module Gameplay = struct
     | `Choose choice ->
       let pm = List.nth am choice in
       (logic, Play (player, pm))
-    | `Wait -> (logic, Choose (player, n, am))
+    | `Wait -> (logic, Choose (player, dices, am))
 
   let play player logic (pawn, move) =
     let open Logic in
@@ -258,13 +260,13 @@ module Gameplay = struct
 
   let replay player logic pos =
     let open Logic in
-    let n = throw_dices () in
+    let n, dices = throw_dices () in
     let pawn =
       logic.pawns
       |> List.filter (fun p -> p.owner = player && p.position = pos)
       |> List.hd in
     begin match compute_move logic (pawn, n) with
-      | Some move -> (logic, Choose (player, n, [(pawn, move)]))
+      | Some move -> (logic, Choose (player, dices, [(pawn, move)]))
       | None -> (logic, Begin_turn (next_player player))
     end
 
@@ -279,7 +281,7 @@ type t = {
 let next game inputs =
   let (logic, gameplay) = match game.gameplay with
   | Begin_turn p -> Gameplay.begin_turn p game.logic
-  | Choose (p, n, am) -> Gameplay.wait_input inputs p n game.logic am
+  | Choose (p, dices, am) -> Gameplay.wait_input inputs p dices game.logic am
   | Play (p, pm) -> Gameplay.play p game.logic pm
   | Replay (p, pos) -> Gameplay.replay p game.logic pos
   | Victory p -> Gameplay.victory p game.logic

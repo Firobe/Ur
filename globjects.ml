@@ -5,18 +5,15 @@ let trig_norm x = 2. *. pi *. x
 let trig_counter i n = trig_norm @@ (float i) /. (float n)
 let smooth_progress prog = (cos (pi +. prog *. pi) +. 1.) /. 2. 
 
-let triangle =
-  (Gl.lines,
+let triangle r g b =
+  (Gl.triangles,
    [| -1.0; -1.0; 0.0;
-      1.0; -1.0; 0.0;
-      1.0;  1.0; 0.0;
-      -1.0;  1.0; 0.0 |],
-   [| 1.0; 0.0; 0.0;
       0.0; 1.0; 0.0;
-      0.0; 0.0; 1.0;
-      1.0; 0.0; 1.0 |],
-   [| 0; 1; 2;
-      0; 2; 3 |])
+      1.0;  -1.0; 0.0 |],
+   [| r; g; b;
+      r; g; b;
+      r; g; b; |],
+   [| 0; 1; 2 |])
 
 let sqare =
   (Gl.line_strip,
@@ -117,6 +114,35 @@ module Board = struct
 
   let delete t =
     Geometry.delete t
+end
+
+module Dice = struct
+  type t = {
+    base : Geometry.t;
+    cap : Geometry.t;
+  }
+
+  let create () =
+    let base = Geometry.of_arrays @@ triangle 0. 0. 0. in
+    let cap = Geometry.of_arrays @@ triangle 1. 1. 1. in
+    {base; cap}
+
+  let base_factor = 0.2
+  let cap_factor = 0.05
+
+  let draw pid t ~on ~x ~y =
+    let trans = Matrix.translation x y 0.
+                |> Matrix.scale base_factor base_factor 0. in
+    Geometry.draw ~trans pid t.base;
+
+    if on then
+      let trans = Matrix.translation x (y +. (base_factor -. cap_factor)) 0.
+                  |> Matrix.scale cap_factor cap_factor 0. in
+      Geometry.draw ~trans pid t.cap
+
+  let delete t =
+    Geometry.delete t.base;
+    Geometry.delete t.cap;
 end
 
 module Pawn = struct

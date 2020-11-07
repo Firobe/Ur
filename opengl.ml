@@ -19,6 +19,7 @@ let window_height = (board_height + board_offset_y + board_margin_y) * square_si
 type objects = {
   pawn : Pawn.t;
   board : Board.t;
+  dice : Dice.t;
 }
 
 type context = {
@@ -70,6 +71,17 @@ let draw_victory player animations context =
   end;
   Sdl.gl_swap_window context.win
 
+let draw_dices (d1, d2, d3, d4) animation context =
+  let x = match animation with
+    | None -> -1.
+    | Some a -> -2. +. (Animation.progress a)
+  in
+  let off = 1. in
+  Dice.draw context.pid context.objects.dice ~on:d1 ~x ~y:(off);
+  Dice.draw context.pid context.objects.dice ~on:d2 ~x ~y:(off +. 0.5);
+  Dice.draw context.pid context.objects.dice ~on:d3 ~x ~y:(off +. 1.0);
+  Dice.draw context.pid context.objects.dice ~on:d4 ~x ~y:(off +. 1.5)
+
 let draw_playing game animations context =
   let open Game in
   let open Animation in
@@ -80,9 +92,11 @@ let draw_playing game animations context =
   Board.draw context.pid context.objects.board;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   begin match game.gameplay with
-  | Choose (p, _, choices) when (player p).p_type = Human_player ->
+  | Choose (p, dices, choices) when (player p).p_type = Human_player ->
+    let choice_a = get_animation Choice animations in
+    draw_dices dices choice_a context;
     List.iter (fun (pawn, _) ->
-        let choice = begin match get_animation Choice animations with
+        let choice = begin match choice_a with
           | None -> 1.
           | Some a -> Animation.progress a
         end in Pawn.draw context.pid context.objects.pawn ~choice pawn
@@ -105,9 +119,9 @@ let draw_playing game animations context =
       | Pawn_moving (p, Move position) 
       | Pawn_moving (p, Take {position; _}) -> d p {p with position} prog
       | Pawn_moving (p, Add) ->
-        d {p with position = Reserve} p (0.5 +. (prog /. 2.))
+        d {p with position = Reserve} p prog
       | Pawn_moving (p, Finish) ->
-        d p {p with position = Outro 2} (prog /. 2.)
+        d p {p with position = Outro 2} prog 
       | _ -> ()
     ) animations;
   Sdl.gl_swap_window context.win
@@ -218,8 +232,9 @@ let init () =
   let* _ = Sdl.gl_set_swap_interval 0 in
   let pawn = Pawn.create () in
   let board = Board.create () in
+  let dice = Dice.create () in
   Gl.enable Gl.multisample;
-  Ok (win, ctx, pid, pawn, board)
+  Ok (win, ctx, pid, {pawn; board; dice})
 
 let terminate context =
   let* _ = delete_program context.pid in
@@ -230,8 +245,7 @@ let terminate context =
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state =
   match begin
-    let* win, ctx, pid, pawn, board = init () in
-    let objects = {pawn; board} in
+    let* win, ctx, pid, objects = init () in
     let context = {win; ctx; pid; poll_state; buffer_input; send_inputs; objects} in
     let* last_context = loop init_state context in
     terminate last_context
