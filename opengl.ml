@@ -6,8 +6,15 @@ open Globjects
 
 let print_fps = false
 let square_size = 100
-let window_width = 8 * square_size
-let window_height = 3 * square_size
+let board_width = 8
+let board_height = 3
+let board_offset_x = 2
+let board_offset_y = 2
+let board_margin_x = 2
+let board_margin_y = 2
+
+let window_width = (board_width + board_offset_x + board_margin_x) * square_size
+let window_height = (board_height + board_offset_y + board_margin_y) * square_size
 
 type objects = {
   pawn : Pawn.t;
@@ -32,7 +39,11 @@ let clear_screen ?(r=0.5) ?(g=0.5) ?(b=0.5) () =
 let reshape _win w h =
   Gl.viewport 0 0 w h
 
-let proj_matrix = Matrix.ortho 0. 8. 0. 3. (-1.) 1.
+(* For the board *)
+let proj_matrix = Matrix.ortho
+    (float (-board_offset_x)) (float (board_width + board_margin_x))
+    (float (-board_offset_y)) (float (board_height + board_margin_y))
+    (-1.) 1.
 
 let get_animation kind =
   let open Animation in
@@ -162,8 +173,8 @@ let process_events context =
     begin match event e with
       | `Mouse_button_down when Sdl.Event.(get e mouse_button_button = Sdl.Button.left) ->
         let open Sdl.Event in
-        let x = get e mouse_button_x / square_size in
-        let y = get e mouse_button_y / square_size in
+        let x = get e mouse_button_x / square_size - board_offset_x in
+        let y = get e mouse_button_y / square_size - board_offset_y in
         let pos = Input.coord_to_pos x y in
         context.buffer_input (Input.Pawn pos)
       | `Quit -> quit context
