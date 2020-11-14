@@ -1,2 +1,4 @@
-(executable (name ur)
-(libraries threads tgls.tgl4 tsdl))
+(executable
+ (name ur)
+ (public_name ur)
+ (libraries threads tgls.tgl4 tsdl))

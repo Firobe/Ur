@@ -5,22 +5,17 @@ type kind =
   | Victory
   | Choice
 
-type t = {
-  id : int;
-  length : float;
-  start : float;
-  kind : kind;
-}
+type t = {id: int; length: float; start: float; kind: kind}
 
-let is_active t = 
+let is_active t =
   let now = Unix.gettimeofday () in
   now -. t.start <= t.length
 
 let new_id = ref 0
 
-let create ?(delay=0.) length kind =
+let create ?(delay = 0.) length kind =
   let id = !new_id in
-  incr new_id;
+  incr new_id ;
   let start = Unix.gettimeofday () +. delay in
   {id; length; start; kind}
 
