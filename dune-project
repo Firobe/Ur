@@ -12,6 +12,7 @@
   (synopsis "A graphical implementation of the royal game of Ur")
   (description "A graphical implementation of the royal game of Ur")
   (depends
+    core
     base-threads
     tsdl
     tgls
