@@ -5,7 +5,7 @@ open Result
 open Gl_objects
 
 let print_fps = true
-let enable_vsync = false
+let enable_vsync = true
 let square_size = 100
 let board_width = 8
 let board_height = 3
