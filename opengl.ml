@@ -4,6 +4,8 @@ open Glutils
 open Result
 open Globjects
 
+let print_fps = true
+let enable_vsync = true
 let square_size = 100
 let board_width = 8
 let board_height = 3
@@ -15,8 +17,6 @@ let window_width = (board_width + board_offset_x + board_margin_x) * square_size
 
 let window_height =
   (board_height + board_offset_y + board_margin_y) * square_size
-
-let print_fps = true
 
 type objects = {pawn: Pawn.t; board: Board.t; dice: Dice.t}
 
@@ -228,7 +228,7 @@ let init () =
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* pid = create_program (glsl_version gl) in
-  let* _ = Sdl.gl_set_swap_interval 0 in
+  let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
   let pawn = Pawn.create () in
   let board = Board.create () in
   let dice = Dice.create () in
