@@ -1,11 +1,11 @@
 open Tsdl
 open Tgl4
-open Glutils
+open Gl_utils
 open Result
-open Globjects
+open Gl_objects
 
 let print_fps = true
-let enable_vsync = true
+let enable_vsync = false
 let square_size = 100
 let board_width = 8
 let board_height = 3
@@ -23,7 +23,6 @@ type objects = {pawn: Pawn.t; board: Board.t; dice: Dice.t}
 type context =
   { win: Sdl.window
   ; ctx: Sdl.gl_context
-  ; pid: int
   ; poll_state: unit -> State.t option
   ; buffer_input: Input.t -> unit
   ; send_inputs: unit -> unit
@@ -72,23 +71,19 @@ let draw_dices (d1, d2, d3, d4) animation context =
     match animation with None -> -1. | Some a -> -2. +. Animation.progress a
   in
   let off = 1. in
-  Dice.draw context.pid context.objects.dice ~on:d1 ~x ~y:off ;
-  Dice.draw context.pid context.objects.dice ~on:d2 ~x ~y:(off +. 0.5) ;
-  Dice.draw context.pid context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
-  Dice.draw context.pid context.objects.dice ~on:d4 ~x ~y:(off +. 1.5)
+  Dice.draw context.objects.dice ~on:d1 ~x ~y:off ;
+  Dice.draw context.objects.dice ~on:d2 ~x ~y:(off +. 0.5) ;
+  Dice.draw context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
+  Dice.draw context.objects.dice ~on:d4 ~x ~y:(off +. 1.5)
 
 let draw_playing game animations context =
   let open Game in
   let open Animation in
   clear_screen () ;
-  Gl.use_program context.pid ;
-  let viewid = Gl.get_uniform_location context.pid "view" in
-  Gl.uniform_matrix4fv viewid 1 true (Matrix.raw proj_matrix) ;
-  Board.draw context.pid context.objects.board ;
-  Pawn.draw_reserve context.pid context.objects.pawn ~x:0.2 ~y:(-0.3)
-    game.logic.p1.reserve P1 ;
-  Pawn.draw_reserve context.pid context.objects.pawn ~x:0.2 ~y:3.3
-    game.logic.p2.reserve P2 ;
+  Board.draw context.objects.board ;
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
+    P1 ;
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   ( match game.gameplay with
   | Choose (p, dices, choices) when (player p).p_type = Human_player ->
@@ -99,7 +94,7 @@ let draw_playing game animations context =
           let choice =
             match choice_a with None -> 1. | Some a -> Animation.progress a
           in
-          Pawn.draw context.pid context.objects.pawn ~choice pawn)
+          Pawn.draw context.objects.pawn ~choice pawn)
         choices
   | _ -> () ) ;
   let normal_pawns =
@@ -113,12 +108,12 @@ let draw_playing game animations context =
                | _ -> false)
              animations)
       game.logic.pawns in
-  List.iter (Pawn.draw context.pid context.objects.pawn) normal_pawns ;
+  List.iter (Pawn.draw context.objects.pawn) normal_pawns ;
   List.iter
     (fun a ->
       let prog = Animation.progress a in
       let d orig dest p =
-        Pawn.draw context.pid context.objects.pawn ~animate:(dest, p) orig in
+        Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
       match a.kind with
       | Pawn_moving (p, Move position) | Pawn_moving (p, Take {position; _}) ->
           d p {p with position} prog
@@ -221,31 +216,55 @@ let rec loop state context =
       if should_redraw then draw_state state context ;
       loop state context
 
+let pp_opengl_info ppf () =
+  let pp = Format.fprintf in
+  let pp_opt ppf = function None -> pp ppf "error" | Some s -> pp ppf "%s" s in
+  pp ppf "Using OpenGL backend@." ;
+  pp ppf "@[<v>@," ;
+  pp ppf "Renderer @[<v>@[%a@]@," pp_opt (Gl.get_string Gl.renderer) ;
+  pp ppf "@[OpenGL %a / GLSL %a@]@]@," pp_opt (Gl.get_string Gl.version) pp_opt
+    (Gl.get_string Gl.shading_language_version) ;
+  pp ppf "@]"
+
+let create_window ~gl:(maj, min) ~w ~h =
+  let w_atts = Sdl.Window.(opengl (*+ resizable*)) in
+  let w_title = Printf.sprintf "OpenGL Game of Ur" in
+  let set a v = Sdl.gl_set_attribute a v in
+  let* _ = set Sdl.Gl.context_profile_mask Sdl.Gl.context_profile_core in
+  let* _ = set Sdl.Gl.context_major_version maj in
+  let* _ = set Sdl.Gl.context_minor_version min in
+  let* _ = set Sdl.Gl.doublebuffer 1 in
+  let* win = Sdl.create_window ~w ~h w_title w_atts in
+  let* ctx = Sdl.gl_create_context win in
+  let* _ = Sdl.gl_make_current win ctx in
+  Sdl.log "%a" pp_opengl_info () ;
+  Ok (win, ctx)
+
+let destroy_window win ctx =
+  Sdl.gl_delete_context ctx ; Sdl.destroy_window win ; Ok ()
+
 let init () =
   let* _ = Sdl.init Sdl.Init.video in
   (* Enable antialiasing *)
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplebuffers 1 in
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
-  let* pid = create_program (glsl_version gl) in
   let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
-  let pawn = Pawn.create () in
-  let board = Board.create () in
-  let dice = Dice.create () in
+  let* pawn = Pawn.create proj_matrix in
+  let* board = Board.create proj_matrix in
+  let* dice = Dice.create proj_matrix in
   Gl.enable Gl.multisample ;
-  Ok (win, ctx, pid, {pawn; board; dice})
+  Ok (win, ctx, {pawn; board; dice})
 
 let terminate context =
-  let* _ = delete_program context.pid in
   Pawn.delete context.objects.pawn ;
   let* _ = destroy_window context.win context.ctx in
   Sdl.quit () ; Ok ()
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state =
   match
-    let* win, ctx, pid, objects = init () in
-    let context =
-      {win; ctx; pid; poll_state; buffer_input; send_inputs; objects} in
+    let* win, ctx, objects = init () in
+    let context = {win; ctx; poll_state; buffer_input; send_inputs; objects} in
     let* last_context = loop init_state context in
     terminate last_context
   with

@@ -1,5 +1,5 @@
 open State
-module ADisplay = Display.Make (Opengl)
+module ADisplay = Display.Make (Gl_display)
 
 let rec game_loop state =
   ADisplay.sync state ;

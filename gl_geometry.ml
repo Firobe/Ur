@@ -1,6 +1,6 @@
 open Bigarray
 open Tgl4
-open Glutils
+open Gl_utils
 
 type int_bigarray = (int, int8_unsigned_elt, c_layout) Array1.t
 type float_bigarray = (float, float32_elt, c_layout) Array1.t
@@ -48,6 +48,7 @@ let delete t =
   List.iter delete_buffer t.bids
 
 let draw ?(trans = Matrix.identity) pid t =
+  Gl.use_program pid ;
   let matid = Gl.get_uniform_location pid "model" in
   Gl.uniform_matrix4fv matid 1 false (Matrix.raw trans) ;
   Gl.bind_vertex_array t.gid ;

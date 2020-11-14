@@ -1,4 +1,5 @@
 open Tgl4
+open Gl_utils
 
 let pi = 3.14159265359
 let trig_norm x = 2. *. pi *. x
@@ -50,9 +51,9 @@ let circle r g b n =
   (Gl.triangle_fan, vertices, colors, indices)
 
 module Board = struct
-  type t = Geometry.t
+  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t}
 
-  let create () =
+  let create proj =
     let vertices =
       Array.init
         (9 * 4 * 3)
@@ -73,44 +74,59 @@ module Board = struct
          c 0 0; c 1 1; c 0 1; c 1 0; c 6 0; c 7 1; c 6 1; c 7 0; c 3 1; c 4 2
        ; c 3 2; c 4 1; c 0 2; c 1 3; c 0 3; c 1 2; c 6 2; c 7 3; c 6 3; c 7 2
       |] in
-    Geometry.of_arrays (Gl.lines, vertices, colors, indices)
+    let geometry = Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices) in
+    let* shader = Gl_shader.create () in
+    Gl_shader.send_matrix shader "view" proj ;
+    Ok {geometry; shader}
 
-  let draw pid t = Geometry.draw pid t
-  let delete t = Geometry.delete t
+  let draw t = Gl_geometry.draw t.shader.pid t.geometry
+
+  let delete t =
+    Gl_geometry.delete t.geometry ;
+    Gl_shader.delete t.shader
 end
 
 module Dice = struct
-  type t = {base: Geometry.t; cap: Geometry.t}
+  type t = {base: Gl_geometry.t; cap: Gl_geometry.t; shader: Gl_shader.t}
 
-  let create () =
-    let base = Geometry.of_arrays @@ triangle 0. 0. 0. in
-    let cap = Geometry.of_arrays @@ triangle 1. 1. 1. in
-    {base; cap}
+  let create proj =
+    let base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
+    let cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
+    let* shader = Gl_shader.create () in
+    Gl_shader.send_matrix shader "view" proj ;
+    Ok {base; cap; shader}
 
   let base_factor = 0.2
   let cap_factor = 0.05
 
-  let draw pid t ~on ~x ~y =
+  let draw t ~on ~x ~y =
+    let pid = t.shader.pid in
     let trans =
       Matrix.translation x y 0. |> Matrix.scale base_factor base_factor 0. in
-    Geometry.draw ~trans pid t.base ;
+    Gl_geometry.draw ~trans pid t.base ;
     if on then
       let trans =
         Matrix.translation x (y +. (base_factor -. cap_factor)) 0.
         |> Matrix.scale cap_factor cap_factor 0. in
-      Geometry.draw ~trans pid t.cap
+      Gl_geometry.draw ~trans pid t.cap
 
-  let delete t = Geometry.delete t.base ; Geometry.delete t.cap
+  let delete t =
+    Gl_geometry.delete t.base ;
+    Gl_geometry.delete t.cap ;
+    Gl_shader.delete t.shader
 end
 
 module Pawn = struct
-  type t = {p1: Geometry.t; p2: Geometry.t; c: Geometry.t}
+  type t =
+    {p1: Gl_geometry.t; p2: Gl_geometry.t; c: Gl_geometry.t; shader: Gl_shader.t}
 
-  let create () =
-    let p1 = Geometry.of_arrays @@ circle 1.0 0. 0. 200 in
-    let p2 = Geometry.of_arrays @@ circle 0. 0. 1. 200 in
-    let c = Geometry.of_arrays @@ circle 1. 1. 0. 200 in
-    {p1; p2; c}
+  let create proj =
+    let p1 = Gl_geometry.of_arrays @@ circle 1.0 0. 0. 200 in
+    let p2 = Gl_geometry.of_arrays @@ circle 0. 0. 1. 200 in
+    let c = Gl_geometry.of_arrays @@ circle 1. 1. 0. 200 in
+    let* shader = Gl_shader.create () in
+    Gl_shader.send_matrix shader "view" proj ;
+    Ok {p1; p2; c; shader}
 
   let pawn_to_float pawn =
     let pawn_to_coord = function
@@ -124,16 +140,16 @@ module Pawn = struct
     let nx, ny = pawn_to_coord pawn in
     (float nx +. 0.5, float ny +. 0.5)
 
-  let draw_reserve pid t ~x ~y n player =
+  let draw_reserve t ~x ~y n player =
     let p = if player = Game.P1 then t.p1 else t.p2 in
     for i = 0 to n - 1 do
       let trans =
         Matrix.translation (x +. (float i *. 0.23)) y 0.
         |> Matrix.scale 0.1 0.1 0. in
-      Geometry.draw ~trans pid p
+      Gl_geometry.draw ~trans t.shader.pid p
     done
 
-  let draw pid t ?animate ?choice pawn =
+  let draw t ?animate ?choice pawn =
     (* Grille 8 x 3 *)
     let p =
       match choice with
@@ -156,8 +172,11 @@ module Pawn = struct
       Matrix.translation x y 0.
       |> Matrix.scale def_scale def_scale 0.
       |> Matrix.scale scafa scafa 0. in
-    Geometry.draw ~trans pid p
+    Gl_geometry.draw ~trans t.shader.pid p
 
   let delete t =
-    Geometry.delete t.p1 ; Geometry.delete t.p2 ; Geometry.delete t.c
+    Gl_geometry.delete t.p1 ;
+    Gl_geometry.delete t.p2 ;
+    Gl_geometry.delete t.c ;
+    Gl_shader.delete t.shader
 end

@@ -1,3 +1,5 @@
+open Gl_utils
+
 type t = float array
 
 (* Transformations *)
@@ -60,4 +62,4 @@ let pp fmt t =
     Format.fprintf fmt "@."
   done
 
-let raw t = Glutils.bigarray_of Bigarray.float32 t
+let raw t = bigarray_of Bigarray.float32 t
