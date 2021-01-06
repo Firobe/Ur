@@ -8,6 +8,7 @@ homepage: "https://github.com/Firobe/Ur"
 bug-reports: "https://github.com/Firobe/Ur/issues"
 depends: [
   "dune" {>= "2.4"}
+  "core"
   "base-threads"
   "tsdl"
   "tgls"
