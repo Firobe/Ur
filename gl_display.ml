@@ -26,7 +26,8 @@ type context =
   ; poll_state: unit -> State.t option
   ; buffer_input: Input.t -> unit
   ; send_inputs: unit -> unit
-  ; objects: objects }
+  ; objects: objects
+  ; text: Gl_text.t }
 
 let gl = (4, 4)
 
@@ -48,23 +49,35 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
+let black = Sdl.Color.create ~r:0 ~g:0 ~b:0 ~a:255
+
 let draw_title animations context =
-  ( match get_animation Title animations with
-  | None -> clear_screen ()
-  | Some t ->
-      let prog = Animation.progress t /. 2. in
-      clear_screen ~r:prog ~g:prog ~b:prog () ) ;
-  Sdl.gl_swap_window context.win
+  let* text =
+    match get_animation Title animations with
+    | None -> clear_screen () ; Ok context.text
+    | Some t ->
+        let* text = Gl_text.write context.text black "Game of Ur!" in
+        let prog = Animation.progress t /. 2. in
+        clear_screen ~r:prog ~g:prog ~b:prog () ;
+        Ok text
+  in
+  Sdl.gl_swap_window context.win ;
+  Ok {context with text}
 
 let draw_victory player animations context =
-  ( match get_animation Victory animations with
-  | None -> clear_screen ()
-  | Some t ->
-      let prog = Animation.progress t /. 2. in
-      let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
-      let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
-      clear_screen ~r ~g:(0.5 -. prog) ~b () ) ;
-  Sdl.gl_swap_window context.win
+  let* text =
+    match get_animation Victory animations with
+    | None -> clear_screen () ; Ok context.text
+    | Some t ->
+        let* text = Gl_text.write context.text black "OULALA" in
+        let prog = Animation.progress t /. 2. in
+        let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
+        let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
+        clear_screen ~r ~g:(0.5 -. prog) ~b () ;
+        Ok text
+  in
+  Sdl.gl_swap_window context.win ;
+  Ok {context with text}
 
 let draw_dices (d1, d2, d3, d4) animation context =
   let x =
@@ -160,14 +173,16 @@ let draw_state state context =
     | Waiting (_, Title_screen, _) | Title_screen ->
         draw_title state.animations context
     (* Computation only frames *)
-    | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} -> ()
+    | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
+        Ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
-        draw_playing g state.animations context
+        draw_playing g state.animations context ;
+        Ok context
     (* Victory screen *)
     | Waiting (_, _, Victory_screen p) | Victory_screen p ->
         draw_victory p state.animations context
-    | _ -> () in
+    | _ -> Ok context in
   f state.kind
 
 let quit context =
@@ -207,13 +222,15 @@ let rec loop state context =
   context.send_inputs () ;
   match context.poll_state () with
   | Some new_state ->
-      draw_state new_state context ;
+      let* context = draw_state new_state context in
       if new_state.kind = State.End then (
         Format.printf "End of display loop@." ;
         Ok context )
       else loop new_state context
   | None ->
-      if should_redraw then draw_state state context ;
+      let* context =
+        if should_redraw then draw_state state context else Ok context
+      in
       loop state context
 
 let pp_opengl_info ppf () =
@@ -250,23 +267,28 @@ let init () =
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
+  let* text = Gl_text.init () in
+  let text = Gl_text.set_default text "arial.ttf" 42 in
   let* pawn = Pawn.create proj_matrix in
   let* board = Board.create proj_matrix in
   let* dice = Dice.create proj_matrix in
   Gl.enable Gl.multisample ;
-  Ok (win, ctx, {pawn; board; dice})
+  Ok (win, ctx, {pawn; board; dice}, text)
 
 let terminate context =
   Pawn.delete context.objects.pawn ;
   let* _ = destroy_window context.win context.ctx in
-  Sdl.quit () ; Ok ()
+  Gl_text.terminate context.text ;
+  Sdl.quit () ;
+  Ok ()
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state =
   match
-    let* win, ctx, objects = init () in
-    let context = {win; ctx; poll_state; buffer_input; send_inputs; objects} in
+    let* win, ctx, objects, text = init () in
+    let context =
+      {win; ctx; poll_state; buffer_input; send_inputs; objects; text} in
     let* last_context = loop init_state context in
     terminate last_context
   with
   | Ok () -> ()
-  | Error (`Msg msg) -> Sdl.log "%s@." msg
+  | Error (`Msg msg) -> Sdl.log "FATAL GRAPHICAL ERROR: %s@." msg

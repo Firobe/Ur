@@ -1,4 +1,4 @@
 (executable
  (name ur)
  (public_name ur)
- (libraries core threads tgls.tgl4 tsdl))
+ (libraries core threads tgls.tgl4 tsdl tsdl_ttf))

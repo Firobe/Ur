@@ -12,6 +12,7 @@ depends: [
   "base-threads"
   "tsdl"
   "tgls"
+  "tsdl-ttf"
 ]
 build: [
   ["dune" "subst"] {pinned}
