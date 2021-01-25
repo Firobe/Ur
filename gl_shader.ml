@@ -17,7 +17,7 @@ let compile_shader src typ =
 type t = {pid: int}
 
 let create ?(v_filename = "shaders/default.vert")
-    ?(f_filename = "shaders/default.frag") () =
+    ?(f_filename = "shaders/default.frag") attributes =
   let vertex_shader = In_channel.read_all v_filename in
   let frag_shader = In_channel.read_all f_filename in
   let* vid = compile_shader vertex_shader Gl.vertex_shader in
@@ -28,8 +28,7 @@ let create ?(v_filename = "shaders/default.vert")
   Gl.delete_shader vid ;
   Gl.attach_shader pid fid ;
   Gl.delete_shader fid ;
-  Gl.bind_attrib_location pid 0 "vertex" ;
-  Gl.bind_attrib_location pid 1 "color" ;
+  List.iteri ~f:(fun i name -> Gl.bind_attrib_location pid i name) attributes ;
   Gl.link_program pid ;
   if get_program pid Gl.link_status = Gl.true_ then Ok {pid}
   else

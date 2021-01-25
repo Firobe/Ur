@@ -75,7 +75,7 @@ module Board = struct
        ; c 3 2; c 4 1; c 0 2; c 1 3; c 0 3; c 1 2; c 6 2; c 7 3; c 6 3; c 7 2
       |] in
     let geometry = Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices) in
-    let* shader = Gl_shader.create () in
+    let* shader = Gl_shader.create ["vertex"; "color"] in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {geometry; shader}
 
@@ -92,7 +92,7 @@ module Dice = struct
   let create proj =
     let base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
     let cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
-    let* shader = Gl_shader.create () in
+    let* shader = Gl_shader.create ["vertex"; "color"] in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {base; cap; shader}
 
@@ -124,7 +124,7 @@ module Pawn = struct
     let p1 = Gl_geometry.of_arrays @@ circle 1.0 0. 0. 200 in
     let p2 = Gl_geometry.of_arrays @@ circle 0. 0. 1. 200 in
     let c = Gl_geometry.of_arrays @@ circle 1. 1. 0. 200 in
-    let* shader = Gl_shader.create () in
+    let* shader = Gl_shader.create ["vertex"; "color"] in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {p1; p2; c; shader}
 
