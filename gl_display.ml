@@ -261,6 +261,7 @@ let destroy_window win ctx =
   Sdl.gl_delete_context ctx ; Sdl.destroy_window win ; Ok ()
 
 let init () =
+  (* TODO propre ressource cleaning in case of error *)
   let* _ = Sdl.init Sdl.Init.video in
   (* Enable antialiasing *)
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplebuffers 1 in
@@ -268,7 +269,7 @@ let init () =
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
   let* text = Gl_text.init () in
-  let text = Gl_text.set_default text "arial.ttf" 42 in
+  let text = Gl_text.set_default text "Compagnon-Light.otf" 42 in
   let* pawn = Pawn.create proj_matrix in
   let* board = Board.create proj_matrix in
   let* dice = Dice.create proj_matrix in
@@ -282,7 +283,7 @@ let terminate context =
   Sdl.quit () ;
   Ok ()
 
-let start ~poll_state ~buffer_input ~send_inputs ~init_state =
+let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
     let* win, ctx, objects, text = init () in
     let context =
@@ -291,4 +292,6 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state =
     terminate last_context
   with
   | Ok () -> ()
-  | Error (`Msg msg) -> Sdl.log "FATAL GRAPHICAL ERROR: %s@." msg
+  | Error (`Msg msg) ->
+    Sdl.log_critical Sdl.Log.category_video "%s" msg ;
+    error msg

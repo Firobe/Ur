@@ -5,7 +5,7 @@ let move_time = 0.3
 let title_time = 1.0
 let victory_time = 2.0
 let choice_time = 0.1
-let debug = false
+let debug = false 
 
 type kind =
   | Title_screen
@@ -35,7 +35,12 @@ let pp fmt t =
       | Waiting _ -> fp fmt "waiting" | End -> fp fmt "end")
     t.kind
 
-let has_quit inputs = List.exists (( = ) Input.Quit) inputs
+let has_quit inputs =
+  List.exists (function
+      | Input.Quit
+      | Input.Error _ -> true
+      | _ -> false
+    ) inputs
 
 type next_fun = ?animations:Animation.t list -> kind -> t
 
