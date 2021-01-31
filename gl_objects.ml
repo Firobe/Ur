@@ -12,12 +12,6 @@ let triangle r g b =
   , [|r; g; b; r; g; b; r; g; b|]
   , [|0; 1; 2|] )
 
-let sqare =
-  ( Gl.line_strip
-  , [|0.; 0.; 0.; 1.; 0.; 0.; 1.; 1.; 0.; 0.; 1.; 0.|]
-  , [|1.; 1.; 1.; 1.; 1.; 1.; 1.; 1.; 1.; 1.; 1.; 1.|]
-  , [|0; 1; 2; 3; 4|] )
-
 let set_3d a i x y z =
   let start = i * 3 in
   a.(start) <- x ;

@@ -56,9 +56,9 @@ let draw_title animations context =
     match get_animation Title animations with
     | None -> clear_screen () ; Ok context.text
     | Some t ->
-        let* text = Gl_text.write context.text black "Game of Ur!" in
         let prog = Animation.progress t /. 2. in
         clear_screen ~r:prog ~g:prog ~b:prog () ;
+        let* text = Gl_text.write context.text black "Game of Ur !" in
         Ok text
   in
   Sdl.gl_swap_window context.win ;
@@ -69,7 +69,7 @@ let draw_victory player animations context =
     match get_animation Victory animations with
     | None -> clear_screen () ; Ok context.text
     | Some t ->
-        let* text = Gl_text.write context.text black "OULALA" in
+        let* text = Gl_text.write context.text black "Victory !" in
         let prog = Animation.progress t /. 2. in
         let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
         let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
@@ -134,7 +134,11 @@ let draw_playing game animations context =
       | Pawn_moving (p, Finish) -> d p {p with position= Outro 2} prog
       | _ -> ())
     animations ;
-  Sdl.gl_swap_window context.win
+  let score = Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
+  in
+  let* text = Gl_text.write context.text black score in
+  Sdl.gl_swap_window context.win ;
+  Ok {context with text}
 
 module Timer = struct
   let time = Unix.gettimeofday
@@ -177,8 +181,7 @@ let draw_state state context =
         Ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
-        draw_playing g state.animations context ;
-        Ok context
+        draw_playing g state.animations context
     (* Victory screen *)
     | Waiting (_, _, Victory_screen p) | Victory_screen p ->
         draw_victory p state.animations context
@@ -268,8 +271,10 @@ let init () =
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
   let* win, ctx = create_window ~gl ~w:window_width ~h:window_height in
   let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
-  let* text = Gl_text.init () in
-  let text = Gl_text.set_default text "Compagnon-Light.otf" 42 in
+  Gl.enable Gl.blend ;
+  Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
+  let* text = Gl_text.init proj_matrix in
+  let text = Gl_text.set_default text "klill.ttf" 42 in
   let* pawn = Pawn.create proj_matrix in
   let* board = Board.create proj_matrix in
   let* dice = Dice.create proj_matrix in
