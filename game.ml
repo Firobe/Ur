@@ -68,7 +68,7 @@ module Logic = struct
         (fun p ->
           match compute_move state (p, n) with
           | None -> None
-          | Some x -> Some (p, x))
+          | Some x -> Some (p, x) )
         own_pawns in
     let p = if player = P1 then state.p1 else state.p2 in
     if p.reserve > 0 && n > 0 then

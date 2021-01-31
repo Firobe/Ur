@@ -7,7 +7,7 @@ type float_bigarray = (float, float32_elt, c_layout) Array1.t
 
 type raw =
   { vertices: float_bigarray
-  ; frags: (float_bigarray * [`Colored | `Textured])
+  ; frags: float_bigarray * [`Colored | `Textured]
   ; indices: int_bigarray
   ; mode: int }
 
@@ -26,10 +26,9 @@ let create raw =
   Gl.bind_vertex_array gid ;
   Gl.bind_buffer Gl.element_array_buffer iid ;
   bind_attrib vid 0 3 Gl.float ;
-  begin match (snd raw.frags) with
-  | `Colored -> bind_attrib cid 1 3 Gl.float 
-  | `Textured -> bind_attrib cid 1 2 Gl.float
-  end ;
+  ( match snd raw.frags with
+  | `Colored -> bind_attrib cid 1 3 Gl.float
+  | `Textured -> bind_attrib cid 1 2 Gl.float ) ;
   Gl.bind_vertex_array 0 ;
   Gl.bind_buffer Gl.array_buffer 0 ;
   Gl.bind_buffer Gl.element_array_buffer 0 ;
@@ -38,7 +37,7 @@ let create raw =
   in
   result
 
-let of_arrays ?(frag_kind=`Colored) (mode, v, c, i) =
+let of_arrays ?(frag_kind = `Colored) (mode, v, c, i) =
   let raw =
     { vertices= bigarray_of Bigarray.float32 v
     ; frags= (bigarray_of Bigarray.float32 c, frag_kind)

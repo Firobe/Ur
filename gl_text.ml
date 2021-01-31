@@ -21,8 +21,7 @@ module Texture_cache = Map.Make (Texture_index)
 type texture = {tid: int; surface: Sdl.surface; width: int; height: int}
 
 module Text_object = struct
-  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t;
-            texture : texture}
+  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t; texture: texture}
 
   let v_filename = "shaders/textured.vert"
   let f_filename = "shaders/textured.frag"
@@ -30,18 +29,19 @@ module Text_object = struct
   let text_rectangle w h =
     ( Gl.triangles
     , [|0.; 0.; 0.; w; 0.; 0.; w; h; 0.; 0.; h; 0.|]
-    , [| 0.; 1.; 1.; 1.; 1.; 0.; 0.; 0. |]
+    , [|0.; 1.; 1.; 1.; 1.; 0.; 0.; 0.|]
     , [|0; 1; 3; 2; 1; 3|] )
 
   let create proj texture =
     let frag_kind = `Textured in
     (* TODO correctly zone the stuff *)
-    let z_width = (float texture.width) /. 100. in
-    let z_height = (float texture.height) /. 100. in
+    let z_width = float texture.width /. 100. in
+    let z_height = float texture.height /. 100. in
     let zone = text_rectangle z_width z_height in
     let geometry = Gl_geometry.of_arrays ~frag_kind zone in
-    let* shader = Gl_shader.create ~v_filename ~f_filename
-        ["vertex"; "texture_coords"] in
+    let* shader =
+      Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+    in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {geometry; shader; texture}
 
@@ -61,8 +61,7 @@ type t =
   { font_cache: Ttf.font Font_cache.t
   ; texture_cache: Text_object.t Texture_cache.t
   ; default_index: Font_index.t option
-  ; proj : Matrix.t 
-  }
+  ; proj: Matrix.t }
 
 let init proj =
   if Sdl.Init.test (Sdl.was_init None) Sdl.Init.video then
@@ -87,8 +86,7 @@ let get_font_spec t font_name font_size =
     | None ->
         if Option.is_some t.default_index then
           Ok (fst (Option.get t.default_index))
-        else
-          Error (`Msg "Must provide font name either as parameter or default")
+        else Error (`Msg "Must provide font name either as parameter or default")
   in
   let* font_size =
     match font_size with
@@ -96,8 +94,7 @@ let get_font_spec t font_name font_size =
     | None ->
         if Option.is_some t.default_index then
           Ok (snd (Option.get t.default_index))
-        else
-          Error (`Msg "Must provide font size either as parameter or default")
+        else Error (`Msg "Must provide font size either as parameter or default")
   in
   Ok (font_name, font_size)
 
@@ -141,8 +138,7 @@ let get_obj t font_name font_size color text =
 let write t ?font_name ?font_size color text =
   let* font_name, font_size = get_font_spec t font_name font_size in
   let* obj, t = get_obj t font_name font_size color text in
-  Text_object.draw obj ;
-  Ok t
+  Text_object.draw obj ; Ok t
 
 let terminate t =
   Texture_cache.iter (fun _ obj -> Text_object.delete obj) t.texture_cache ;

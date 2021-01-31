@@ -5,7 +5,7 @@ let move_time = 0.3
 let title_time = 1.0
 let victory_time = 2.0
 let choice_time = 0.1
-let debug = false 
+let debug = false
 
 type kind =
   | Title_screen
@@ -29,18 +29,18 @@ let is_same_kind k1 k2 =
 let pp fmt t =
   let fp = Format.fprintf in
   fp fmt "{animations[%d]; kind=%a}" (List.length t.animations)
-    (fun fmt -> function Title_screen -> fp fmt "title"
+    (fun fmt -> function
+      | Title_screen -> fp fmt "title"
       | Victory_screen _ -> fp fmt "victory"
       | Playing g -> fp fmt "playing (%a)" Game.Gameplay.pp_state g.gameplay
-      | Waiting _ -> fp fmt "waiting" | End -> fp fmt "end")
+      | Waiting _ -> fp fmt "waiting"
+      | End -> fp fmt "end" )
     t.kind
 
 let has_quit inputs =
-  List.exists (function
-      | Input.Quit
-      | Input.Error _ -> true
-      | _ -> false
-    ) inputs
+  List.exists
+    (function Input.Quit | Input.Error _ -> true | _ -> false)
+    inputs
 
 type next_fun = ?animations:Animation.t list -> kind -> t
 

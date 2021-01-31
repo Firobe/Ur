@@ -22,8 +22,10 @@ module Make (Engine : DISPLAY_ENGINE) = struct
     | None -> ()
 
   let error msg =
-    Event.send input_channel [Input.Error msg] |> Event.sync;
-    Event.receive state_channel |> Event.sync |> ignore (* Ignore last state *)
+    Event.send input_channel [Input.Error msg] |> Event.sync ;
+    Event.receive state_channel |> Event.sync |> ignore
+
+  (* Ignore last state *)
 
   let poll_state () = Event.receive state_channel |> Event.poll
   let wait_inputs () = Event.receive input_channel |> Event.sync
@@ -32,8 +34,7 @@ module Make (Engine : DISPLAY_ENGINE) = struct
     let start_thread () =
       Printf.printf "Display engine started.\n%!" ;
       Engine.start ~poll_state ~buffer_input ~send_inputs ~init_state ~error ;
-      Printf.printf "Display engine stopped.\n%!"
-    in
+      Printf.printf "Display engine stopped.\n%!" in
     thread := Some (Thread.create start_thread ())
 
   let terminate () =

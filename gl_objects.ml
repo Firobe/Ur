@@ -55,7 +55,7 @@ module Board = struct
           let c = i / 3 in
           let y = c / 9 in
           let x = c mod 9 in
-          match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0.) in
+          match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. ) in
     let colors = Array.make (Array.length vertices) 1. in
     let c x y = x + (9 * y) in
     let indices =

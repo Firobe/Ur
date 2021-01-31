@@ -107,7 +107,7 @@ let draw_playing game animations context =
           let choice =
             match choice_a with None -> 1. | Some a -> Animation.progress a
           in
-          Pawn.draw context.objects.pawn ~choice pawn)
+          Pawn.draw context.objects.pawn ~choice pawn )
         choices
   | _ -> () ) ;
   let normal_pawns =
@@ -118,8 +118,8 @@ let draw_playing game animations context =
              (fun a ->
                match a.kind with
                | Pawn_moving (mp, _) when mp = pawn -> true
-               | _ -> false)
-             animations)
+               | _ -> false )
+             animations )
       game.logic.pawns in
   List.iter (Pawn.draw context.objects.pawn) normal_pawns ;
   List.iter
@@ -132,9 +132,10 @@ let draw_playing game animations context =
           d p {p with position} prog
       | Pawn_moving (p, Add) -> d {p with position= Reserve} p prog
       | Pawn_moving (p, Finish) -> d p {p with position= Outro 2} prog
-      | _ -> ())
+      | _ -> () )
     animations ;
-  let score = Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
+  let score =
+    Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
   in
   let* text = Gl_text.write context.text black score in
   Sdl.gl_swap_window context.win ;
@@ -298,5 +299,5 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   with
   | Ok () -> ()
   | Error (`Msg msg) ->
-    Sdl.log_critical Sdl.Log.category_video "%s" msg ;
-    error msg
+      Sdl.log_critical Sdl.Log.category_video "%s" msg ;
+      error msg

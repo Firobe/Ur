@@ -29,25 +29,28 @@ let create ?(v_filename = "shaders/default.vert")
   Gl.attach_shader pid fid ;
   Gl.delete_shader fid ;
   Gl.link_program pid ;
-  let* () = if get_program pid Gl.link_status = Gl.true_ then Ok ()
+  let* () =
+    if get_program pid Gl.link_status = Gl.true_ then Ok ()
     else
       let len = get_program pid Gl.info_log_length in
       let log = get_string len (Gl.get_program_info_log pid len None) in
       Gl.delete_program pid ;
-      let msg = Printf.sprintf "Upon linking [%s | %s]: %s" v_filename f_filename log
+      let msg =
+        Printf.sprintf "Upon linking [%s | %s]: %s" v_filename f_filename log
       in
       Error (`Msg msg)
   in
-  let* () = List.foldi attributes ~init:(Ok ()) ~f:(fun i status name ->
-      if Gl.get_attrib_location pid name = -1 then
-        let msg = Printf.sprintf "%s is not a variable in [%s | %s]" name v_filename
-            f_filename in
-        Error (`Msg msg)
-      else (
-        let* () = status in
-        Ok (Gl.bind_attrib_location pid i name)
-      )
-    ) in
+  let* () =
+    List.foldi attributes ~init:(Ok ()) ~f:(fun i status name ->
+        if Gl.get_attrib_location pid name = -1 then
+          let msg =
+            Printf.sprintf "%s is not a variable in [%s | %s]" name v_filename
+              f_filename in
+          Error (`Msg msg)
+        else
+          let* () = status in
+          Ok (Gl.bind_attrib_location pid i name) )
+  in
   Ok {pid}
 
 let delete t = Gl.delete_program t.pid
