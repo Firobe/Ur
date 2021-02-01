@@ -49,7 +49,7 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
-let color = function `Black -> (0, 0, 0) | `Selected -> (255, 0, 0)
+let color = function `Black -> (0, 0, 0) | `Selected -> (0, 80, 0)
 
 let draw_title animations context =
   let* text =
@@ -73,7 +73,7 @@ let draw_menu m _animations context =
     List.mapi
       (fun i c ->
         ( float board_total_height -. float board_offset_y
-          -. (float (i + 1) *. delta)
+          -. ((float i +. 0.5) *. delta)
         , c ) )
       m.choices in
   let cc = Menu.get_current_choice m in
@@ -81,9 +81,12 @@ let draw_menu m _animations context =
   let* text =
     List.fold_left
       (fun text (y, c) ->
-        let col = color (if c = cc then `Selected else `Black) in
+        let selected = c = cc in
+        let col = color (if selected then `Selected else `Black) in
+        let scale = if selected then 1.2 else 1. in
         let* t = text in
-        Gl_text.write t col ~y (Choice.get_text c) )
+        let x = float board_width /. 2. in
+        Gl_text.write t col ~scale ~x ~y (Choice.get_text c) )
       (Ok context.text) with_heights
   in
   Sdl.gl_swap_window context.win ;

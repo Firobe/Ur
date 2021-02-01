@@ -21,7 +21,12 @@ module Texture_cache = Map.Make (Texture_index)
 type texture = {tid: int; surface: Sdl.surface; width: int; height: int}
 
 module Text_object = struct
-  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t; texture: texture}
+  type t =
+    { geometry: Gl_geometry.t
+    ; shader: Gl_shader.t
+    ; texture: texture
+    ; quad_width: float
+    ; quad_height: float }
 
   let v_filename = "shaders/textured.vert"
   let f_filename = "shaders/textured.frag"
@@ -35,19 +40,21 @@ module Text_object = struct
   let create proj texture =
     let frag_kind = `Textured in
     (* TODO correctly zone the stuff *)
-    let z_width = float texture.width /. 100. in
-    let z_height = float texture.height /. 100. in
-    let zone = text_rectangle z_width z_height in
+    let quad_width = float texture.width /. 100. in
+    let quad_height = float texture.height /. 100. in
+    let zone = text_rectangle quad_width quad_height in
     let geometry = Gl_geometry.of_arrays ~frag_kind zone in
     let* shader =
       Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
     in
     Gl_shader.send_matrix shader "view" proj ;
-    Ok {geometry; shader; texture}
+    Ok {geometry; shader; texture; quad_width; quad_height}
 
-  let draw t x y =
+  let draw t scale x y =
     Gl.bind_texture Gl.texture_2d t.texture.tid ;
-    let trans = Matrix.translation x y 0. in
+    let dx = x -. (scale *. t.quad_width /. 2.) in
+    let dy = y -. (scale *. t.quad_height /. 2.) in
+    let trans = Matrix.translation dx dy 0. |> Matrix.scale scale scale 1. in
     Gl_geometry.draw ~trans t.shader.pid t.geometry ;
     Gl.bind_texture Gl.texture_2d 0
 
@@ -110,6 +117,7 @@ let get_font t font_name font_size =
   Ok (font, cache)
 
 let gen_texture t font_name font_size color text =
+  (* TODO manage bold/italic/etc. using Ttf.set_font_style *)
   let* font, font_cache = get_font t font_name font_size in
   let* surface = Ttf.render_utf8_blended font text color in
   let kind = Bigarray.Int8_unsigned in
@@ -138,11 +146,12 @@ let get_obj t font_name font_size color text =
       let texture_cache = Texture_cache.add key obj t.texture_cache in
       Ok (obj, {t with texture_cache})
 
-let write t ?font_name ?font_size (r, g, b) ?(a = 255) ?(x = 0.) ?(y = 0.) text
-    =
+let write t ?font_name ?font_size (r, g, b) ?(a = 255) ?(scale = 1.0) ?(x = 0.)
+    ?(y = 0.) text =
   let* font_name, font_size = get_font_spec t font_name font_size in
   let* obj, t = get_obj t font_name font_size (r, g, b, a) text in
-  Text_object.draw obj x y ; Ok t
+  Text_object.draw obj scale x y ;
+  Ok t
 
 let terminate t =
   Texture_cache.iter (fun _ obj -> Text_object.delete obj) t.texture_cache ;
