@@ -10,7 +10,7 @@ module Font_index = struct
 end
 
 module Texture_index = struct
-  type t = string * int * Sdl.color * string
+  type t = string * int * (int * int * int * int) * string
 
   let compare = compare
 end
@@ -45,9 +45,10 @@ module Text_object = struct
     Gl_shader.send_matrix shader "view" proj ;
     Ok {geometry; shader; texture}
 
-  let draw t =
+  let draw t x y =
     Gl.bind_texture Gl.texture_2d t.texture.tid ;
-    Gl_geometry.draw t.shader.pid t.geometry ;
+    let trans = Matrix.translation x y 0. in
+    Gl_geometry.draw ~trans t.shader.pid t.geometry ;
     Gl.bind_texture Gl.texture_2d 0
 
   let delete t =
@@ -130,15 +131,17 @@ let get_obj t font_name font_size color text =
   match Texture_cache.find_opt key t.texture_cache with
   | Some obj -> Ok (obj, t)
   | None ->
-      let* texture, t = gen_texture t font_name font_size color text in
+      let (r, g, b, a) = color in
+      let sdl_color = Sdl.Color.create ~r ~g ~b ~a in
+      let* texture, t = gen_texture t font_name font_size sdl_color text in
       let* obj = Text_object.create t.proj texture in
       let texture_cache = Texture_cache.add key obj t.texture_cache in
       Ok (obj, {t with texture_cache})
 
-let write t ?font_name ?font_size color text =
+let write t ?font_name ?font_size (r, g, b) ?(a=255) ?(x=0.) ?(y=0.) text =
   let* font_name, font_size = get_font_spec t font_name font_size in
-  let* obj, t = get_obj t font_name font_size color text in
-  Text_object.draw obj ; Ok t
+  let* obj, t = get_obj t font_name font_size (r, g, b, a) text in
+  Text_object.draw obj x y ; Ok t
 
 let terminate t =
   Texture_cache.iter (fun _ obj -> Text_object.delete obj) t.texture_cache ;

@@ -4,7 +4,7 @@ open Gl_utils
 open Result
 open Gl_objects
 
-let print_fps = true
+let print_fps = false
 let enable_vsync = true
 let square_size = 100
 let board_width = 8
@@ -49,7 +49,8 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
-let black = Sdl.Color.create ~r:0 ~g:0 ~b:0 ~a:255
+let color = function
+  | `Black -> (0, 0, 0)
 
 let draw_title animations context =
   let* text =
@@ -58,7 +59,7 @@ let draw_title animations context =
     | Some t ->
         let prog = Animation.progress t /. 2. in
         clear_screen ~r:prog ~g:prog ~b:prog () ;
-        let* text = Gl_text.write context.text black "Game of Ur !" in
+        let* text = Gl_text.write context.text (color `Black) ~x:2.2 "Game of Ur !" in
         Ok text
   in
   Sdl.gl_swap_window context.win ;
@@ -69,7 +70,7 @@ let draw_victory player animations context =
     match get_animation Victory animations with
     | None -> clear_screen () ; Ok context.text
     | Some t ->
-        let* text = Gl_text.write context.text black "Victory !" in
+        let* text = Gl_text.write context.text (color `Black) ~x:2.2 "Victory !" in
         let prog = Animation.progress t /. 2. in
         let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
         let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
@@ -137,7 +138,7 @@ let draw_playing game animations context =
   let score =
     Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
   in
-  let* text = Gl_text.write context.text black score in
+  let* text = Gl_text.write context.text (color `Black) ~x:3. ~y:3.2 score in
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 
