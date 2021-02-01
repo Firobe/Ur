@@ -9,6 +9,7 @@ let debug = false
 
 type kind =
   | Title_screen
+  | Menu of Menu.t
   | Playing of Game.t
   | Waiting of int * kind * kind
   | Victory_screen of playerNo
@@ -31,6 +32,7 @@ let pp fmt t =
   fp fmt "{animations[%d]; kind=%a}" (List.length t.animations)
     (fun fmt -> function
       | Title_screen -> fp fmt "title"
+      | Menu _ -> fp fmt "menu"
       | Victory_screen _ -> fp fmt "victory"
       | Playing g -> fp fmt "playing (%a)" Game.Gameplay.pp_state g.gameplay
       | Waiting _ -> fp fmt "waiting"
@@ -48,7 +50,33 @@ type next_fun = ?animations:Animation.t list -> kind -> t
 let victory_reducer (next : next_fun) = next End
 
 (* Title screen *)
-let title_reducer (next : next_fun) = next (Playing (Game.default_game ()))
+let title_reducer (next : next_fun) = next (Menu Menu.default_menu)
+
+(* Menu *)
+let menu_reducer (next : next_fun) menu inputs =
+  let ns =
+    List.fold_left
+      (function
+        | Menu menu -> (
+            let cc = Menu.get_current_choice menu in
+            function
+            | Input.Validate when cc.final ->
+                (* TODO Take menu choices into account *)
+                let p1 =
+                  Menu.get_choice_option menu "Red player"
+                  |> Option.get |> Game.decode_ptype in
+                let p2 =
+                  Menu.get_choice_option menu "Blue player"
+                  |> Option.get |> Game.decode_ptype in
+                Playing (Game.default_game p1 p2)
+            | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
+            | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)
+            | Input.Previous_option -> Menu (Menu.move_option menu (-1))
+            | Input.Next_option -> Menu (Menu.move_option menu 1)
+            | _ -> Menu menu )
+        | stop -> fun _ -> stop )
+      (Menu menu) inputs in
+  next ns
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
@@ -63,7 +91,7 @@ let transition_trigger state new_state =
     let animations = anim :: new_state.animations in
     {kind= Waiting (anim.id, state.kind, new_state.kind); animations} in
   match (state.kind, new_state.kind) with
-  | Title_screen, Playing _ -> wait_anim Animation.(create title_time Title)
+  | Title_screen, Menu _ -> wait_anim Animation.(create title_time Title)
   | Playing _, Victory_screen _ ->
       wait_anim Animation.(create victory_time Victory)
   | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _} ->
@@ -93,6 +121,7 @@ let reducer state inputs =
     let new_state =
       match state.kind with
       | Title_screen -> title_reducer next
+      | Menu m -> menu_reducer next m inputs
       | Playing g -> playing_reducer next g inputs
       | Victory_screen _ -> victory_reducer next
       | Waiting (aid, old, next) -> waiting_reducer state aid old next

@@ -13,10 +13,10 @@ let board_offset_x = 2
 let board_offset_y = 1
 let board_margin_x = 1
 let board_margin_y = 1
-let window_width = (board_width + board_offset_x + board_margin_x) * square_size
-
-let window_height =
-  (board_height + board_offset_y + board_margin_y) * square_size
+let board_total_width = board_width + board_offset_x + board_margin_x
+let board_total_height = board_height + board_offset_y + board_margin_y
+let window_width = board_total_width * square_size
+let window_height = board_total_height * square_size
 
 type objects = {pawn: Pawn.t; board: Board.t; dice: Dice.t}
 
@@ -49,8 +49,7 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
-let color = function
-  | `Black -> (0, 0, 0)
+let color = function `Black -> (0, 0, 0) | `Selected -> (255, 0, 0)
 
 let draw_title animations context =
   let* text =
@@ -59,8 +58,33 @@ let draw_title animations context =
     | Some t ->
         let prog = Animation.progress t /. 2. in
         clear_screen ~r:prog ~g:prog ~b:prog () ;
-        let* text = Gl_text.write context.text (color `Black) ~x:2.2 "Game of Ur !" in
+        let* text =
+          Gl_text.write context.text (color `Black) ~x:2.2 "Game of Ur !"
+        in
         Ok text
+  in
+  Sdl.gl_swap_window context.win ;
+  Ok {context with text}
+
+let draw_menu m _animations context =
+  let open Menu in
+  let delta = float board_total_height /. (List.length m.choices |> float) in
+  let with_heights =
+    List.mapi
+      (fun i c ->
+        ( float board_total_height -. float board_offset_y
+          -. (float (i + 1) *. delta)
+        , c ) )
+      m.choices in
+  let cc = Menu.get_current_choice m in
+  clear_screen () ;
+  let* text =
+    List.fold_left
+      (fun text (y, c) ->
+        let col = color (if c = cc then `Selected else `Black) in
+        let* t = text in
+        Gl_text.write t col ~y (Choice.get_text c) )
+      (Ok context.text) with_heights
   in
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
@@ -70,11 +94,13 @@ let draw_victory player animations context =
     match get_animation Victory animations with
     | None -> clear_screen () ; Ok context.text
     | Some t ->
-        let* text = Gl_text.write context.text (color `Black) ~x:2.2 "Victory !" in
         let prog = Animation.progress t /. 2. in
         let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
         let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
         clear_screen ~r ~g:(0.5 -. prog) ~b () ;
+        let* text =
+          Gl_text.write context.text (color `Black) ~x:2.2 "Victory !"
+        in
         Ok text
   in
   Sdl.gl_swap_window context.win ;
@@ -178,6 +204,8 @@ let draw_state state context =
     (* Title screen *)
     | Waiting (_, Title_screen, _) | Title_screen ->
         draw_title state.animations context
+    (* Menu *)
+    | Menu m -> draw_menu m state.animations context
     (* Computation only frames *)
     | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
         Ok context
@@ -211,6 +239,16 @@ let process_events context =
         context.buffer_input (Input.Pawn pos)
     | `Quit -> quit context
     | `Key_down when key_scancode e = `Escape -> quit context
+    | `Key_down when key_scancode e = `Up ->
+        context.buffer_input Input.Previous_menu
+    | `Key_down when key_scancode e = `Down ->
+        context.buffer_input Input.Next_menu
+    | `Key_down when key_scancode e = `Left ->
+        context.buffer_input Input.Previous_option
+    | `Key_down when key_scancode e = `Right ->
+        context.buffer_input Input.Next_option
+    | `Key_down when key_scancode e = `Return ->
+        context.buffer_input Input.Validate
     | `Window_event -> (
       match window_event e with
       | `Exposed | `Resized ->

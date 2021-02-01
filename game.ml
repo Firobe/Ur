@@ -259,13 +259,19 @@ let next game inputs =
     | Victory p -> Gameplay.victory p game.logic in
   {logic; gameplay}
 
-let default_game () =
+let decode_ptype = function
+  | "Human" -> Logic.Human_player
+  | "AI (Random)" -> Logic.AI_player AI.random_ai
+  | "AI (Smart)" -> Logic.AI_player AI.basic_ai
+  | s -> failwith (s ^ "is not a player type")
+
+let default_game p1 p2 =
   let default_player =
     Logic.{reserve= max_pawns; points= 0; p_type= Human_player} in
   let logic =
     Logic.
-      { p1= default_player
-      ; p2= {default_player with p_type= AI_player AI.basic_ai}
+      { p1= {default_player with p_type= p1}
+      ; p2= {default_player with p_type= p2}
       ; pawns= [] } in
   let gameplay = Gameplay.Begin_turn P1 in
   {logic; gameplay}

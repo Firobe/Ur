@@ -131,14 +131,15 @@ let get_obj t font_name font_size color text =
   match Texture_cache.find_opt key t.texture_cache with
   | Some obj -> Ok (obj, t)
   | None ->
-      let (r, g, b, a) = color in
+      let r, g, b, a = color in
       let sdl_color = Sdl.Color.create ~r ~g ~b ~a in
       let* texture, t = gen_texture t font_name font_size sdl_color text in
       let* obj = Text_object.create t.proj texture in
       let texture_cache = Texture_cache.add key obj t.texture_cache in
       Ok (obj, {t with texture_cache})
 
-let write t ?font_name ?font_size (r, g, b) ?(a=255) ?(x=0.) ?(y=0.) text =
+let write t ?font_name ?font_size (r, g, b) ?(a = 255) ?(x = 0.) ?(y = 0.) text
+    =
   let* font_name, font_size = get_font_spec t font_name font_size in
   let* obj, t = get_obj t font_name font_size (r, g, b, a) text in
   Text_object.draw obj x y ; Ok t
