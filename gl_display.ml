@@ -66,7 +66,7 @@ let draw_title animations context =
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 
-let draw_menu m _animations context =
+let draw_menu m animations context =
   let open Menu in
   let delta = float board_total_height /. (List.length m.choices |> float) in
   let with_heights =
@@ -77,13 +77,28 @@ let draw_menu m _animations context =
         , c ) )
       m.choices in
   let cc = Menu.get_current_choice m in
+  let open Animation in
+  let is_current, is_origin, progress =
+    match
+      List.find_opt
+        (fun a -> match a.kind with Menu_move _ -> true | _ -> false)
+        animations
+    with
+    | Some ({kind= Menu_move (s, d); _} as a) ->
+        let sc = Menu.get_nth_choice m s in
+        let dc = Menu.get_nth_choice m d in
+        (Choice.eq dc, Choice.eq sc, Animation.progress a)
+    | _ -> (Choice.eq cc, (fun _ -> false), 1.0) in
   clear_screen () ;
   let* text =
     List.fold_left
       (fun text (y, c) ->
-        let selected = c = cc in
-        let col = color (if selected then `Selected else `Black) in
-        let scale = if selected then 1.2 else 1. in
+        let isc = is_current c in
+        let iso = is_origin c in
+        let col = color (if isc || iso then `Selected else `Black) in
+        let local_progress =
+          if isc then progress else if iso then 1. -. progress else 0. in
+        let scale = 1. +. (0.2 *. local_progress) in
         let* t = text in
         let x = float board_width /. 2. in
         Gl_text.write t col ~scale ~x ~y (Choice.get_text c) )
@@ -208,7 +223,7 @@ let draw_state state context =
     | Waiting (_, Title_screen, _) | Title_screen ->
         draw_title state.animations context
     (* Menu *)
-    | Menu m -> draw_menu m state.animations context
+    | Waiting (_, Menu m, _) | Menu m -> draw_menu m state.animations context
     (* Computation only frames *)
     | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
         Ok context

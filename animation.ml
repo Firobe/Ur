@@ -2,6 +2,7 @@ type kind =
   | Title
   | Wait
   | Pawn_moving of (Game.Logic.pawn * Game.Logic.move)
+  | Menu_move of (int * int)
   | Victory
   | Choice
 

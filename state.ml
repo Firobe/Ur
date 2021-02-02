@@ -5,6 +5,7 @@ let move_time = 0.3
 let title_time = 1.0
 let victory_time = 2.0
 let choice_time = 0.1
+let menu_move_time = 0.1
 let debug = false
 
 type kind =
@@ -92,6 +93,8 @@ let transition_trigger state new_state =
     {kind= Waiting (anim.id, state.kind, new_state.kind); animations} in
   match (state.kind, new_state.kind) with
   | Title_screen, Menu _ -> wait_anim Animation.(create title_time Title)
+  | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
+      wait_anim Animation.(create menu_move_time (Menu_move (h1, h2)))
   | Playing _, Victory_screen _ ->
       wait_anim Animation.(create victory_time Victory)
   | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _} ->
