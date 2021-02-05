@@ -18,9 +18,7 @@ module Logic = struct
 
   type player_type = Human_player | AI_player of choice_function
   type player = {reserve: int; points: int; p_type: player_type}
-  type state = {p1: player; p2: player; pawns: pawn list}
-
-  let max_pawns = 7
+  type state = {p1: player; p2: player; pawns: pawn list; goal: int}
 
   let is_rose = function
     | Intro x -> x = 3
@@ -107,8 +105,8 @@ module Logic = struct
         (set_pawns state (pawn :: pawns), replay pawn.position)
 
   let check_end state =
-    if state.p1.points = max_pawns then Some P1
-    else if state.p2.points = max_pawns then Some P2
+    if state.p1.points = state.goal then Some P1
+    else if state.p2.points = state.goal then Some P2
     else None
 
   let throw_dices () =
@@ -265,13 +263,13 @@ let decode_ptype = function
   | "AI (Smart)" -> Logic.AI_player AI.basic_ai
   | s -> failwith (s ^ "is not a player type")
 
-let default_game p1 p2 =
+let default_game p1 p2 pawns =
   let default_player =
-    Logic.{reserve= max_pawns; points= 0; p_type= Human_player} in
+    Logic.{reserve= pawns; points= 0; p_type= Human_player} in
   let logic =
     Logic.
       { p1= {default_player with p_type= p1}
       ; p2= {default_player with p_type= p2}
-      ; pawns= [] } in
+      ; pawns= []; goal=pawns } in
   let gameplay = Gameplay.Begin_turn P1 in
   {logic; gameplay}

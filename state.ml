@@ -63,14 +63,17 @@ let menu_reducer (next : next_fun) menu inputs =
             let cc = Menu.get_current_choice menu in
             function
             | Input.Validate when cc.final ->
-                (* TODO Take menu choices into account *)
                 let p1 =
                   Menu.get_choice_option menu "Red player"
                   |> Option.get |> Game.decode_ptype in
                 let p2 =
                   Menu.get_choice_option menu "Blue player"
                   |> Option.get |> Game.decode_ptype in
-                Playing (Game.default_game p1 p2)
+                let points =
+                  Menu.get_choice_option menu "Pawns"
+                  |> Option.get |> int_of_string
+                in
+                Playing (Game.default_game p1 p2 points)
             | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
             | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)
             | Input.Previous_option -> Menu (Menu.move_option menu (-1))
