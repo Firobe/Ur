@@ -55,6 +55,7 @@ let color = function
   | `Alert -> (200, 0, 0)
   | `Red -> (255, 0, 0)
   | `Blue -> (0, 0, 255)
+  | `Random -> (Random.int 256, Random.int 256, Random.int 256)
 
 let draw_title animations context =
   let* text =
@@ -63,8 +64,11 @@ let draw_title animations context =
     | Some t ->
         let prog = Animation.progress t /. 2. in
         clear_screen ~r:prog ~g:prog ~b:prog () ;
+        let y = (11. *. prog) -. 1. in
         let* text =
-          Gl_text.write context.text (color `Black) ~x:2.2 "Game of Ur !"
+          Gl_text.write context.text
+            (color `Black)
+            ~x:3.5 ~y ~scale:3. "Royal Game of Ur"
         in
         Ok text
   in
