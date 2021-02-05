@@ -53,6 +53,8 @@ let color = function
   | `Black -> (0, 0, 0)
   | `Selected -> (0, 80, 0)
   | `Alert -> (200, 0, 0)
+  | `Red -> (255, 0, 0)
+  | `Blue -> (0, 0, 255)
 
 let draw_title animations context =
   let* text =
@@ -182,10 +184,10 @@ let draw_playing game animations context =
       | Pawn_moving (p, Finish) -> d p {p with position= Outro 2} prog
       | _ -> () )
     animations ;
-  let score =
-    Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
-  in
-  let* text = Gl_text.write context.text (color `Black) ~x:3. ~y:3.2 score in
+  let s1 = Printf.sprintf "%d" game.logic.p1.points in
+  let s2 = Printf.sprintf "%d" game.logic.p2.points in
+  let* text = Gl_text.write context.text (color `Red) ~x:5. ~y:0.5 s1 in
+  let* text = Gl_text.write text (color `Blue) ~x:5. ~y:2.5 s2 in
   let* text =
     match
       List.find_opt
@@ -194,7 +196,7 @@ let draw_playing game animations context =
     with
     | Some {kind= Cannot_choose dices; _} ->
         draw_dices dices None context ;
-        Gl_text.write context.text
+        Gl_text.write text
           (color `Alert)
           ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
     | _ -> Ok text
