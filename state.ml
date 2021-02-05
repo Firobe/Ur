@@ -71,8 +71,7 @@ let menu_reducer (next : next_fun) menu inputs =
                   |> Option.get |> Game.decode_ptype in
                 let points =
                   Menu.get_choice_option menu "Pawns"
-                  |> Option.get |> int_of_string
-                in
+                  |> Option.get |> int_of_string in
                 Playing (Game.default_game p1 p2 points)
             | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
             | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)

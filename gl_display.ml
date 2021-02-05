@@ -120,7 +120,7 @@ let draw_victory player animations context =
         let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
         clear_screen ~r ~g:(0.5 -. prog) ~b () ;
         let* text =
-          Gl_text.write context.text (color `Black) ~x:2.2 "Victory !"
+          Gl_text.write context.text (color `Black) ~x:3.6 ~y:1. "Victory !"
         in
         Ok text
   in

@@ -264,12 +264,12 @@ let decode_ptype = function
   | s -> failwith (s ^ "is not a player type")
 
 let default_game p1 p2 pawns =
-  let default_player =
-    Logic.{reserve= pawns; points= 0; p_type= Human_player} in
+  let default_player = Logic.{reserve= pawns; points= 0; p_type= Human_player} in
   let logic =
     Logic.
       { p1= {default_player with p_type= p1}
       ; p2= {default_player with p_type= p2}
-      ; pawns= []; goal=pawns } in
+      ; pawns= []
+      ; goal= pawns } in
   let gameplay = Gameplay.Begin_turn P1 in
   {logic; gameplay}
