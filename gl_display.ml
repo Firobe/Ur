@@ -121,8 +121,11 @@ let draw_victory player animations context =
         let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
         let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
         clear_screen ~r ~g:(0.5 -. prog) ~b () ;
+        let scale = if prog = 0. then 10000. else 1. /. prog in
         let* text =
-          Gl_text.write context.text (color `Black) ~x:3.6 ~y:1. "Victory !"
+          Gl_text.write context.text
+            (color `Black)
+            ~x:3.6 ~y:1.5 ~scale "Victory"
         in
         Ok text
   in
