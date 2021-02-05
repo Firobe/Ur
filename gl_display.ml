@@ -186,8 +186,18 @@ let draw_playing game animations context =
     animations ;
   let s1 = Printf.sprintf "%d" game.logic.p1.points in
   let s2 = Printf.sprintf "%d" game.logic.p2.points in
-  let* text = Gl_text.write context.text (color `Red) ~x:5. ~y:0.5 s1 in
-  let* text = Gl_text.write text (color `Blue) ~x:5. ~y:2.5 s2 in
+  let ss1 =
+    match get_animation (Score_up P1) animations with
+    | None -> 1.
+    | Some a -> 3. -. (2. *. Animation.progress a) in
+  let ss2 =
+    match get_animation (Score_up P2) animations with
+    | None -> 1.
+    | Some a -> 3. -. (2. *. Animation.progress a) in
+  let* text =
+    Gl_text.write context.text (color `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
+  in
+  let* text = Gl_text.write text (color `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2 in
   let* text =
     match
       List.find_opt

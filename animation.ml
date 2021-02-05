@@ -5,6 +5,7 @@ type kind =
   | Menu_move of (int * int)
   | Cannot_choose of (bool * bool * bool * bool)
   | Victory
+  | Score_up of Game.playerNo
   | Choice
 
 type t = {id: int; length: float; start: float; kind: kind}

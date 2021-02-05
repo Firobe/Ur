@@ -7,6 +7,7 @@ let victory_time = 2.0
 let choice_time = 0.1
 let menu_move_time = 0.1
 let cannot_choose_time = 1.0
+let score_up_time = 0.25
 let debug = false
 
 type kind =
@@ -95,16 +96,31 @@ let transition_trigger state new_state =
     let animations = anim :: new_state.animations in
     {kind= Waiting (anim.id, state.kind, new_state.kind); animations} in
   match (state.kind, new_state.kind) with
+  (* Title screen *)
   | Title_screen, Menu _ -> wait_anim Animation.(create title_time Title)
+  (* Menu move *)
   | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
       wait_anim Animation.(create menu_move_time (Menu_move (h1, h2)))
+  (* Victory *)
   | Playing _, Victory_screen _ ->
       wait_anim Animation.(create victory_time Victory)
+  (* Pawn move *)
   | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _} ->
       wait_anim Animation.(create move_time (Pawn_moving choice))
+  (* Score up *)
+  | ( Playing {gameplay= Play (P1, _); logic= l1}
+    , Playing {gameplay= Begin_turn _; logic= l2} )
+    when l1.p1.points < l2.p1.points ->
+      wait_anim Animation.(create score_up_time (Score_up P1))
+  | ( Playing {gameplay= Play (P2, _); logic= l1}
+    , Playing {gameplay= Begin_turn _; logic= l2} )
+    when l1.p2.points < l2.p2.points ->
+      wait_anim Animation.(create score_up_time (Score_up P2))
+  (* No move *)
   | Playing {gameplay= Choose (_, d, _); _}, Playing {gameplay= Begin_turn _; _}
     ->
       wait_anim Animation.(create cannot_choose_time (Cannot_choose d))
+  (* Yellow choice *)
   | ( Playing {gameplay= Begin_turn _; _}
     , Playing ({gameplay= Choose (p, _, _); _} as g) )
    |( Playing {gameplay= Replay _; _}
