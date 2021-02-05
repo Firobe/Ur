@@ -49,7 +49,10 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
-let color = function `Black -> (0, 0, 0) | `Selected -> (0, 80, 0)
+let color = function
+  | `Black -> (0, 0, 0)
+  | `Selected -> (0, 80, 0)
+  | `Alert -> (200, 0, 0)
 
 let draw_title animations context =
   let* text =
@@ -183,6 +186,19 @@ let draw_playing game animations context =
     Printf.sprintf "Score: %d - %d" game.logic.p1.points game.logic.p2.points
   in
   let* text = Gl_text.write context.text (color `Black) ~x:3. ~y:3.2 score in
+  let* text =
+    match
+      List.find_opt
+        (function {kind= Cannot_choose _; _} -> true | _ -> false)
+        animations
+    with
+    | Some {kind= Cannot_choose dices; _} ->
+        draw_dices dices None context ;
+        Gl_text.write context.text
+          (color `Alert)
+          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
+    | _ -> Ok text
+  in
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 

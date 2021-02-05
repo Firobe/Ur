@@ -6,6 +6,7 @@ let title_time = 1.0
 let victory_time = 2.0
 let choice_time = 0.1
 let menu_move_time = 0.1
+let cannot_choose_time = 1.0
 let debug = false
 
 type kind =
@@ -99,6 +100,9 @@ let transition_trigger state new_state =
       wait_anim Animation.(create victory_time Victory)
   | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _} ->
       wait_anim Animation.(create move_time (Pawn_moving choice))
+  | Playing {gameplay= Choose (_, d, _); _}, Playing {gameplay= Begin_turn _; _}
+    ->
+      wait_anim Animation.(create cannot_choose_time (Cannot_choose d))
   | ( Playing {gameplay= Begin_turn _; _}
     , Playing ({gameplay= Choose (p, _, _); _} as g) )
    |( Playing {gameplay= Replay _; _}
