@@ -16,11 +16,11 @@ let is_active t =
 
 let new_id = ref 0
 
-let create ?(delay = 0.) length kind =
+let create ?(delay = 0.) ?(speed = 1.) length kind =
   let id = !new_id in
   incr new_id ;
   let start = Unix.gettimeofday () +. delay in
-  {id; length; start; kind}
+  {id; length= length /. speed; start; kind}
 
 let progress t =
   let now = Unix.gettimeofday () in
