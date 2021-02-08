@@ -4,7 +4,7 @@ open Game.Gameplay
 let move_time = 0.3
 let title_time = 1.5
 let victory_time = 2.0
-let choice_time = 1.0
+let choice_time = 0.5
 let menu_move_time = 0.1
 let cannot_choose_time = 1.0
 let score_up_time = 0.25
@@ -138,13 +138,16 @@ let transition_trigger state new_state =
       wait_anim Animation.(anim_create cannot_choose_time (Cannot_choose d))
   (* Yellow choice *)
   | ( Playing {gameplay= Begin_turn _; _}
-    , Playing ({gameplay= Choose (p, _, _); _} as g) )
+    , Playing ({gameplay= Choose (_p, _, _); _} as _g) )
    |( Playing {gameplay= Replay _; _}
-    , Playing ({gameplay= Choose (p, _, _); _} as g) ) -> (
+    , Playing ({gameplay= Choose (_p, _, _); _} as _g) ) ->
+      (*
       let player = if p = P1 then g.logic.p1 else g.logic.p2 in
       match player.p_type with
       | Human_player -> wait_anim (anim_create choice_time Choice)
       | _ -> new_state )
+          *)
+      wait_anim (anim_create choice_time Choice)
   | _ -> new_state
 
 (* Waiting *)

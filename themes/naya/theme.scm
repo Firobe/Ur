@@ -3,7 +3,7 @@
  (text_colors (
    (base (0 0 0))
    (menu_selected (255 165 0))
-   (alert (200 0 0))
+   (alert (255 165 0))
    (p1 (128 0 0))
    (p2 (0 0 128))
  ))

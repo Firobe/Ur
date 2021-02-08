@@ -25,6 +25,8 @@ type objects =
   ; background: Background.t
   ; cup: Cup.t }
 
+type dice_data = {kinds: int list; coords: (float * float) list}
+
 type context =
   { win: Sdl.window
   ; ctx: Sdl.gl_context
@@ -32,7 +34,7 @@ type context =
   ; buffer_input: Input.t -> unit
   ; send_inputs: unit -> unit
   ; objects: objects
-  ; dice_ns: (int * int * int * int) option
+  ; dice_data: dice_data option
   ; text: Gl_text.t }
 
 let gl = (4, 4)
@@ -144,26 +146,52 @@ let draw_victory player themes animations context =
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 
+let throw_dice_data () =
+  let throw () =
+    let r = Random.bool () in
+    1 + if r then 1 else 0 in
+  let dns = [throw (); throw (); throw (); throw ()] in
+  let grid_x = 3 in
+  let grid_y = 4 in
+  let throw_coord () =
+    let x = Random.int grid_x in
+    let y = Random.int grid_y in
+    (x, y) in
+  let already_chosen c l = List.exists (( = ) c) l in
+  let rec choose_unique l =
+    let r = throw_coord () in
+    if already_chosen r l then choose_unique l else r in
+  let icoords =
+    List.fold_left (fun acc () -> choose_unique acc :: acc) [] [(); (); (); ()]
+  in
+  let sorted = List.sort (fun (_, y1) (_, y2) -> Stdlib.compare y2 y1) icoords in
+  let to_float_coords (x, y) =
+    let x = ((0. +. 1.5) /. float grid_x *. float x) -. 1.5 in
+    let y = ((3.0 -. 1.0) /. float grid_y *. float y) +. 1.0 in
+    (x, y) in
+  let real = List.map to_float_coords sorted in
+  {kinds= dns; coords= real}
+
 let draw_dices (d1, d2, d3, d4) animation context =
   (* Draw dices *)
-  let (dd1, dd2, dd3, dd4), context =
-    match context.dice_ns with
+  let kinds, coords, context =
+    match context.dice_data with
     | None ->
-        let throw () =
-          let r = Random.bool () in
-          1 + if r then 1 else 0 in
-        let dns = (throw (), throw (), throw (), throw ()) in
-        (dns, {context with dice_ns= Some dns})
-    | Some x -> (x, context) in
-  let off = 0.5 in
-  let delta = 0.7 in
-  let x =
-    match animation with None -> -1. | Some a -> Animation.progress a -. 2.
-  in
-  Dice.draw context.objects.dice ~n:d4 ~dice_n:dd4 ~x ~y:(off +. (delta *. 3.)) ;
-  Dice.draw context.objects.dice ~n:d3 ~dice_n:dd3 ~x ~y:(off +. (delta *. 2.)) ;
-  Dice.draw context.objects.dice ~n:d2 ~dice_n:dd2 ~x ~y:(off +. (delta *. 1.)) ;
-  Dice.draw context.objects.dice ~n:d1 ~dice_n:dd1 ~x ~y:off ;
+        let data = throw_dice_data () in
+        (data.kinds, data.coords, {context with dice_data= Some data})
+    | Some {kinds; coords} -> (kinds, coords, context) in
+  let prog =
+    match animation with None -> 1. | Some a -> Animation.progress a in
+  let interpolate prog (ox, oy) (x, y) =
+    let fx = ox +. ((x -. ox) *. prog) in
+    let fy = oy +. ((y -. oy) *. prog) in
+    (fx, fy) in
+  let kinds_and_coords = List.map2 (fun a b -> (a, b)) kinds coords in
+  List.iter2
+    (fun (dice_n, (x, y)) n ->
+      let x, y = interpolate prog (-1.5, -1.) (x, y) in
+      Dice.draw context.objects.dice ~n ~dice_n ~x ~y )
+    kinds_and_coords [d1; d2; d3; d4] ;
   (* Draw cup *)
   ( match animation with
   | None -> Cup.draw `Empty context.objects.cup
@@ -182,11 +210,12 @@ let draw_playing game themes animations context =
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
     P1 ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
-  let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
+  let _player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   (* Retrieve available choices and animation progress *)
   let choices, choice_prog, context =
     match game.gameplay with
-    | Choose (p, dices, choices) when (player p).p_type = Human_player ->
+    | Choose (_p, dices, choices) (*  when (player p).p_type = Human_player *)
+      ->
         let choice_a = get_animation Choice animations in
         let context = draw_dices dices choice_a context in
         let choice_prog =
@@ -204,7 +233,7 @@ let draw_playing game themes animations context =
               (function {kind= Cannot_choose _; _} -> true | _ -> false)
               animations
           then context
-          else {context with dice_ns= None} in
+          else {context with dice_data= None} in
         Cup.draw `Full context.objects.cup ;
         ([], 1., context) in
   (* Draw normal (non-hollow) non-moving pawns *)
@@ -482,10 +511,16 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
     let* win, ctx, objects, text = init init_state in
     match
-      let dice_ns = None in
+      let dice_data = None in
       let context =
-        {win; ctx; poll_state; buffer_input; send_inputs; objects; text; dice_ns}
-      in
+        { win
+        ; ctx
+        ; poll_state
+        ; buffer_input
+        ; send_inputs
+        ; objects
+        ; text
+        ; dice_data } in
       let* last_context = loop init_state context in
       terminate last_context
     with
