@@ -4,7 +4,7 @@ module type DISPLAY_ENGINE = sig
     -> buffer_input:(Input.t -> unit)
     -> send_inputs:(unit -> unit)
     -> init_state:State.t
-    -> error:(string -> unit)
+    -> error:(at_init:bool -> string -> unit)
     -> unit
 end
 

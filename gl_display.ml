@@ -421,9 +421,12 @@ let create_window ~gl:(maj, min) ~w ~h =
 let destroy_window win ctx =
   Sdl.gl_delete_context ctx ; Sdl.destroy_window win ; Ok ()
 
+let terminate_video win ctx text =
+  let* _ = destroy_window win ctx in
+  Gl_text.terminate text ; Tsdl_image.Image.quit () ; Sdl.quit () ; Ok ()
+
 let init init_state =
   let open Tsdl_image in
-  (* TODO propre ressource cleaning in case of error *)
   let* _ = Sdl.init Sdl.Init.video in
   let img_flags = Image.Init.(jpg + png) in
   assert (Image.init img_flags = img_flags) ;
@@ -436,27 +439,35 @@ let init init_state =
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
   let* text = Gl_text.init proj_matrix in
   let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
-  let* objects = init_objects init_state.themes in
+  let* objects =
+    match init_objects init_state.themes with
+    | Ok o -> Ok o
+    | Error (`Msg e) ->
+        let* () = terminate_video win ctx text in
+        Error (`Msg e)
+  in
   Gl.enable Gl.multisample ;
   Ok (win, ctx, objects, text)
 
 let terminate context =
   delete_objects context.objects ;
-  let* _ = destroy_window context.win context.ctx in
-  Gl_text.terminate context.text ;
-  Tsdl_image.Image.quit () ;
-  Sdl.quit () ;
-  Ok ()
+  terminate_video context.win context.ctx context.text
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
     let* win, ctx, objects, text = init init_state in
-    let context =
-      {win; ctx; poll_state; buffer_input; send_inputs; objects; text} in
-    let* last_context = loop init_state context in
-    terminate last_context
+    match
+      let context =
+        {win; ctx; poll_state; buffer_input; send_inputs; objects; text} in
+      let* last_context = loop init_state context in
+      terminate last_context
+    with
+    | Ok () -> Ok ()
+    | Error (`Msg msg) ->
+        Sdl.log_critical Sdl.Log.category_video "%s" msg ;
+        Ok (error ~at_init:false msg)
   with
   | Ok () -> ()
   | Error (`Msg msg) ->
-      Sdl.log_critical Sdl.Log.category_video "%s" msg ;
-      error msg
+      Sdl.log_critical Sdl.Log.category_video "INIT: %s" msg ;
+      error ~at_init:true msg

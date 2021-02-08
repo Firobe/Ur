@@ -4,7 +4,7 @@ module type DISPLAY_ENGINE = sig
     -> buffer_input:(Input.t -> unit)
     -> send_inputs:(unit -> unit)
     -> init_state:State.t
-    -> error:(string -> unit)
+    -> error:(at_init:bool -> string -> unit)
     -> unit
 end
 
@@ -21,7 +21,8 @@ module Make (Engine : DISPLAY_ENGINE) = struct
     | Some () -> input_buffer := []
     | None -> ()
 
-  let error msg =
+  let error ~at_init msg =
+    if at_init then Event.receive state_channel |> Event.sync |> ignore ;
     Event.send input_channel [Input.Error msg] |> Event.sync ;
     Event.receive state_channel |> Event.sync |> ignore
 
