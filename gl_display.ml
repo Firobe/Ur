@@ -145,17 +145,7 @@ let draw_victory player themes animations context =
   Ok {context with text}
 
 let draw_dices (d1, d2, d3, d4) animation context =
-  ( match animation with
-  | None -> Cup.draw `Empty context.objects.cup
-  | Some a ->
-      let prog = Animation.progress a in
-      if prog < 0.1 then Cup.draw `Full context.objects.cup
-      else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
-      else Cup.draw `Empty context.objects.cup ) ;
-  let off = 1. in
-  let x =
-    match animation with None -> -1. | Some a -> Animation.progress a -. 2.
-  in
+  (* Draw dices *)
   let (dd1, dd2, dd3, dd4), context =
     match context.dice_ns with
     | None ->
@@ -165,11 +155,23 @@ let draw_dices (d1, d2, d3, d4) animation context =
         let dns = (throw (), throw (), throw (), throw ()) in
         (dns, {context with dice_ns= Some dns})
     | Some x -> (x, context) in
+  let off = 0.5 in
   let delta = 0.7 in
-  Dice.draw context.objects.dice ~n:d1 ~dice_n:dd1 ~x ~y:off ;
-  Dice.draw context.objects.dice ~n:d2 ~dice_n:dd2 ~x ~y:(off +. (delta *. 1.)) ;
-  Dice.draw context.objects.dice ~n:d3 ~dice_n:dd3 ~x ~y:(off +. (delta *. 2.)) ;
+  let x =
+    match animation with None -> -1. | Some a -> Animation.progress a -. 2.
+  in
   Dice.draw context.objects.dice ~n:d4 ~dice_n:dd4 ~x ~y:(off +. (delta *. 3.)) ;
+  Dice.draw context.objects.dice ~n:d3 ~dice_n:dd3 ~x ~y:(off +. (delta *. 2.)) ;
+  Dice.draw context.objects.dice ~n:d2 ~dice_n:dd2 ~x ~y:(off +. (delta *. 1.)) ;
+  Dice.draw context.objects.dice ~n:d1 ~dice_n:dd1 ~x ~y:off ;
+  (* Draw cup *)
+  ( match animation with
+  | None -> Cup.draw `Empty context.objects.cup
+  | Some a ->
+      let prog = Animation.progress a in
+      if prog < 0.1 then Cup.draw `Full context.objects.cup
+      else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
+      else Cup.draw `Empty context.objects.cup ) ;
   context
 
 let draw_playing game themes animations context =
