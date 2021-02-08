@@ -374,8 +374,11 @@ let destroy_window win ctx =
   Sdl.gl_delete_context ctx ; Sdl.destroy_window win ; Ok ()
 
 let init init_state =
+  let open Tsdl_image in
   (* TODO propre ressource cleaning in case of error *)
   let* _ = Sdl.init Sdl.Init.video in
+  let img_flags = Image.Init.(jpg + png) in
+  assert (Image.init img_flags = img_flags) ;
   (* Enable antialiasing *)
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplebuffers 1 in
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
@@ -395,6 +398,7 @@ let terminate context =
   Pawn.delete context.objects.pawn ;
   let* _ = destroy_window context.win context.ctx in
   Gl_text.terminate context.text ;
+  Tsdl_image.Image.quit () ;
   Sdl.quit () ;
   Ok ()
 
