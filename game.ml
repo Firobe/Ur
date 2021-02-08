@@ -240,7 +240,7 @@ module Gameplay = struct
       |> List.hd in
     match compute_move logic (pawn, n) with
     | Some move -> (logic, Choose (player, dices, [(pawn, move)]))
-    | None -> (logic, Begin_turn (next_player player))
+    | None -> (logic, Choose (player, dices, []))
 
   let victory player logic = (logic, Victory player)
 end
