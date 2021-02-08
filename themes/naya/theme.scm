@@ -12,7 +12,7 @@
  (dice_style (animated (
    (empty_cup ((name "CupA.png") (y -0.07) (w 2.0) (h 2.0)))
    (fallen_cup ((name "CupB.png") (y -0.07) (w 2.0) (h 2.0)))
-   (full_cup ((name "CupA.png") (y -0.07) (w 2.0) (h 2.0)))
+   (full_cup ((name "CupC.png") (y -0.07) (w 2.) (h 2.)))
  )))
  (p1_pawn (texture ((name "Red_Pawn.png"))))
  (p2_pawn (texture ((name "Blue_Pawn.png"))))

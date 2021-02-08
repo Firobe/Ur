@@ -144,13 +144,17 @@ let draw_victory player themes animations context =
   Ok {context with text}
 
 let draw_dices (d1, d2, d3, d4) animation context =
-  let prog =
-    match animation with None -> -1. | Some a -> Animation.progress a in
-  if prog < 0.1 then Cup.draw `Full context.objects.cup
-  else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
-  else Cup.draw `Empty context.objects.cup ;
+  ( match animation with
+  | None -> Cup.draw `Empty context.objects.cup
+  | Some a ->
+      let prog = Animation.progress a in
+      if prog < 0.1 then Cup.draw `Full context.objects.cup
+      else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
+      else Cup.draw `Empty context.objects.cup ) ;
   let off = 1. in
-  let x = if prog = -1. then -1. else prog -. 2. in
+  let x =
+    match animation with None -> -1. | Some a -> Animation.progress a -. 2.
+  in
   Dice.draw context.objects.dice ~on:d1 ~x ~y:off ;
   Dice.draw context.objects.dice ~on:d2 ~x ~y:(off +. 0.5) ;
   Dice.draw context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
@@ -172,7 +176,11 @@ let draw_playing game themes animations context =
         let choice_a = get_animation Choice animations in
         draw_dices dices choice_a context ;
         let choice_prog =
-          match choice_a with None -> 1. | Some a -> Animation.progress a in
+          match choice_a with
+          | None -> 1.
+          | Some a ->
+              let prog = Animation.progress a in
+              if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
         let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
         (choice_pawns, choice_prog)
     | _ ->
@@ -194,13 +202,16 @@ let draw_playing game themes animations context =
   List.iter
     (fun pawn ->
       if is_choice pawn then
-        let choice = (`Full, choice_prog) in
-        Pawn.draw context.objects.pawn ~choice pawn
+        if choice_prog <> -1. then
+          let choice = (`Full, choice_prog) in
+          Pawn.draw context.objects.pawn ~choice pawn
+        else Pawn.draw context.objects.pawn pawn
       else Pawn.draw context.objects.pawn pawn )
     normal_pawns ;
   (* Draw hollow pawns *)
-  List.filter (fun p -> not @@ List.exists (( = ) p) normal_pawns) choices
-  |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
+  if choice_prog <> -1. then
+    List.filter (fun p -> not @@ List.exists (( = ) p) normal_pawns) choices
+    |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
   (* Animate moving pawn *)
   List.iter
     (fun a ->
