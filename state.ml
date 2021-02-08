@@ -48,16 +48,18 @@ let has_quit inputs =
     (function Input.Quit | Input.Error _ -> true | _ -> false)
     inputs
 
-type next_fun = ?animations:Animation.t list -> ?speed:float -> kind -> t
+type next_fun =
+  ?animations:Animation.t list -> ?speed:float -> ?themes:Themes.t -> kind -> t
 
 (* Victory *)
 let victory_reducer (next : next_fun) = next End
 
 (* Title screen *)
-let title_reducer (next : next_fun) = next (Menu Menu.default_menu)
+let title_reducer (next : next_fun) themes =
+  next (Menu (Menu.default_menu themes))
 
 (* Menu *)
-let menu_reducer (next : next_fun) menu inputs =
+let menu_reducer (next : next_fun) menu themes inputs =
   let speed = ref 1. in
   let ns =
     List.fold_left
@@ -88,7 +90,9 @@ let menu_reducer (next : next_fun) menu inputs =
             | _ -> Menu menu )
         | stop -> fun _ -> stop )
       (Menu menu) inputs in
-  next ~speed:!speed ns
+  let theme = Menu.get_choice_option menu "Theme" |> Option.get in
+  let themes = Themes.{themes with selected= theme} in
+  next ~speed:!speed ~themes ns
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
@@ -154,12 +158,13 @@ let reducer state inputs =
   let state = {state with animations} in
   if has_quit inputs then {state with kind= End}
   else
-    let next ?(animations = state.animations) ?(speed = state.speed) kind =
-      {kind; animations; speed; themes= state.themes} in
+    let next ?(animations = state.animations) ?(speed = state.speed)
+        ?(themes = state.themes) kind =
+      {kind; animations; speed; themes} in
     let new_state =
       match state.kind with
-      | Title_screen -> title_reducer next
-      | Menu m -> menu_reducer next m inputs
+      | Title_screen -> title_reducer next state.themes
+      | Menu m -> menu_reducer next m state.themes inputs
       | Playing g -> playing_reducer next g inputs
       | Victory_screen _ -> victory_reducer next
       | Waiting (aid, old, next) -> waiting_reducer state aid old next
