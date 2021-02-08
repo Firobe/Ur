@@ -6,7 +6,7 @@ open Gl_objects
 
 let print_fps = false
 let enable_vsync = true
-let square_size = 100
+let square_size = 150
 let board_width = 8
 let board_height = 3
 let board_offset_x = 2
@@ -331,7 +331,7 @@ let process_events context =
   !should_redraw
 
 let init_objects themes =
-  let* pawn = Pawn.create proj_matrix in
+  let* pawn = Pawn.create themes proj_matrix in
   let* board = Board.create themes proj_matrix in
   let* dice = Dice.create proj_matrix in
   Ok {pawn; board; dice}

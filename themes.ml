@@ -15,7 +15,8 @@ type theme =
   ; font: string
   ; board: color_or_texture
   ; p1_pawn: color_or_texture
-  ; p2_pawn: color_or_texture }
+  ; p2_pawn: color_or_texture
+  ; hollow_pawn: color_or_texture }
 [@@deriving sexp]
 
 type t = {themes: (string * theme) list; selected: string}
@@ -37,7 +38,7 @@ let load_themes () =
         Sys.readdir dir |> Array.to_list
         |> List.filter (fun s -> Sys.is_directory (dest s))
         |> List.map (load_theme dir) in
-      {themes; selected= "default"}
+      {themes; selected= "naya"}
     else failwith "Invalid themes directory"
   with Sys_error s -> failwith ("Error while loading themes: " ^ s)
 
@@ -45,7 +46,7 @@ let to_menu t =
   let names = List.map fst t.themes in
   let n =
     List.mapi (fun i x -> (i, x)) names
-    |> List.find (fun (_, x) -> x = "default")
+    |> List.find (fun (_, x) -> x = "naya")
     |> fst in
   (n, names)
 
@@ -53,6 +54,9 @@ let current t = List.assoc t.selected t.themes
 let prepend_path t path = Printf.sprintf "%s/%s/%s" themes_dir t.selected path
 let font t = (current t).font |> prepend_path t
 let background t = (current t).background
+let p1_pawn t = (current t).p1_pawn
+let p2_pawn t = (current t).p2_pawn
+let hollow_pawn t = (current t).hollow_pawn
 let text_colors t = (current t).text_colors
 let board t = (current t).board
 let selected t = t.selected

@@ -1,0 +1,15 @@
+(
+ (font "klill.ttf")
+ (text_colors (
+   (base (0 0 0))
+   (menu_selected (255 165 0))
+   (alert (200 0 0))
+   (p1 (255 0 0))
+   (p2 (0 0 255))
+ ))
+ (background (color (1 47 24)))
+ (board (texture "Ur.png"))
+ (p1_pawn (texture "Red_Pawn.png"))
+ (p2_pawn (texture "Blue_Pawn.png"))
+ (hollow_pawn (color (255 255 0)))
+)

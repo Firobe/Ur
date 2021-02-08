@@ -11,4 +11,5 @@
  (board (color (255 255 255)))
  (p1_pawn (color (255 0 0)))
  (p2_pawn (color (0 0 255)))
+ (hollow_pawn (color (255 255 0)))
 )

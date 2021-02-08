@@ -36,3 +36,6 @@ let text_rectangle x y w h =
   , [|x; y; 0.; x +. w; y; 0.; x +. w; y +. h; 0.; x; y +. h; 0.|]
   , [|0.; 1.; 1.; 1.; 1.; 0.; 0.; 0.|]
   , [|0; 1; 3; 2; 1; 3|] )
+
+let color_to_floats (r, g, b) =
+  (float r /. 255., float g /. 255., float b /. 255.)

@@ -33,12 +33,12 @@ module Counter = struct
     | Sin -> sin (trig_counter t.n t.max)
 end
 
-let circle r g b n =
+let circle r g b n ra =
   let vertices = Array.make ((n + 2) * 3) 0. in
   let colors = Array.make ((n + 2) * 3) 0. in
   for i = 1 to n + 1 do
     let step = trig_counter (i - 1) n in
-    set_3d vertices i (cos step) (sin step) 0. ;
+    set_3d vertices i (cos step *. ra) (sin step *. ra) 0. ;
     set_3d colors i r g b
   done ;
   let indices = Array.init (n + 2) (fun x -> x) in
@@ -132,15 +132,41 @@ end
 
 module Pawn = struct
   type t =
-    {p1: Gl_geometry.t; p2: Gl_geometry.t; c: Gl_geometry.t; shader: Gl_shader.t}
+    { p1: Gl_geometry.t
+    ; p2: Gl_geometry.t
+    ; c: Gl_geometry.t
+    ; s1: Gl_shader.t
+    ; s2: Gl_shader.t
+    ; sc: Gl_shader.t }
 
-  let create proj =
-    let* p1 = Gl_geometry.of_arrays @@ circle 1.0 0. 0. 200 in
-    let* p2 = Gl_geometry.of_arrays @@ circle 0. 0. 1. 200 in
-    let* c = Gl_geometry.of_arrays @@ circle 1. 1. 0. 200 in
-    let* shader = Gl_shader.create ["vertex"; "color"] in
-    Gl_shader.send_matrix shader "view" proj ;
-    Ok {p1; p2; c; shader}
+  let geom_from_sum themes =
+    let open Themes in
+    function
+    | Color c ->
+        let r, g, b = color_to_floats c in
+        let* geom = Gl_geometry.of_arrays @@ circle r g b 200 0.4 in
+        let* shader = Gl_shader.create ["vertex"; "color"] in
+        Result.ok (geom, shader)
+    | Texture texture ->
+        let obj = text_rectangle (-0.5) (-0.5) 1. 1. in
+        let texture = Themes.prepend_path themes texture in
+        let frag_kind = `Textured in
+        let* geom = Gl_geometry.of_arrays ~frag_kind ~texture obj in
+        let v_filename = "shaders/textured.vert" in
+        let f_filename = "shaders/textured.frag" in
+        let* shader =
+          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+        in
+        Result.ok (geom, shader)
+
+  let create themes proj =
+    let* p1, s1 = geom_from_sum themes @@ Themes.p1_pawn themes in
+    let* p2, s2 = geom_from_sum themes @@ Themes.p2_pawn themes in
+    let* c, sc = geom_from_sum themes @@ Themes.hollow_pawn themes in
+    Gl_shader.send_matrix s1 "view" proj ;
+    Gl_shader.send_matrix s2 "view" proj ;
+    Gl_shader.send_matrix sc "view" proj ;
+    Ok {p1; p2; c; s1; s2; sc}
 
   let pawn_to_float pawn =
     let pawn_to_coord = function
@@ -155,22 +181,23 @@ module Pawn = struct
     (float nx +. 0.5, float ny +. 0.5)
 
   let draw_reserve t ~x ~y n player =
-    let p = if player = Game.P1 then t.p1 else t.p2 in
+    let p, s = if player = Game.P1 then (t.p1, t.s1) else (t.p2, t.s2) in
     for i = 0 to n - 1 do
       let trans =
         Matrix.translation (x +. (float i *. 0.23)) y 0.
-        |> Matrix.scale 0.1 0.1 0. in
-      Gl_geometry.draw ~trans t.shader.pid p
+        |> Matrix.scale 0.2 0.2 0. in
+      Gl_geometry.draw ~trans s.pid p
     done
 
   let draw t ?animate ?choice pawn =
     (* Grille 8 x 3 *)
-    let p =
+    let p, s =
       match choice with
-      | None -> if Game.Logic.(pawn.owner) = P1 then t.p1 else t.p2
-      | Some _ -> t.c in
+      | None ->
+          if Game.Logic.(pawn.owner) = P1 then (t.p1, t.s1) else (t.p2, t.s2)
+      | Some _ -> (t.c, t.sc) in
     let def_scale =
-      match choice with None -> 0.4 | Some x -> (1.5 -. (x /. 2.)) *. 0.45 in
+      match choice with None -> 1. | Some x -> 1.6 -. (x /. 2.) in
     let x, y, prog =
       match animate with
       | None ->
@@ -186,11 +213,13 @@ module Pawn = struct
       Matrix.translation x y 0.
       |> Matrix.scale def_scale def_scale 0.
       |> Matrix.scale scafa scafa 0. in
-    Gl_geometry.draw ~trans t.shader.pid p
+    Gl_geometry.draw ~trans s.pid p
 
   let delete t =
     Gl_geometry.delete t.p1 ;
     Gl_geometry.delete t.p2 ;
     Gl_geometry.delete t.c ;
-    Gl_shader.delete t.shader
+    Gl_shader.delete t.s1 ;
+    Gl_shader.delete t.s2 ;
+    Gl_shader.delete t.sc
 end
