@@ -110,10 +110,10 @@ module Logic = struct
     else None
 
   let throw_dices () =
-    let throw () = if Random.bool () then 1 else 0 in
-    let tb x = x = 1 in
+    let throw () = Random.int 6 in
+    let tb x = if x <= 2 then 1 else 0 in
     let t1, t2, t3, t4 = (throw (), throw (), throw (), throw ()) in
-    (t1 + t2 + t3 + t4, (tb t1, tb t2, tb t3, tb t4))
+    (tb t1 + tb t2 + tb t3 + tb t4, (t1, t2, t3, t4))
 end
 
 module AI = struct
@@ -180,7 +180,7 @@ module Gameplay = struct
   type state =
     | Begin_turn of playerNo
     | Choose of
-        playerNo * (bool * bool * bool * bool) * (Logic.pawn * Logic.move) list
+        playerNo * (int * int * int * int) * (Logic.pawn * Logic.move) list
     | Play of playerNo * (Logic.pawn * Logic.move)
     | Replay of playerNo * Logic.position
     | Victory of playerNo

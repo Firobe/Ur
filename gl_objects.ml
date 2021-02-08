@@ -102,7 +102,7 @@ module Cup = struct
   let create themes proj =
     match Themes.dice_style themes with
     | Themes.Old -> Result.ok None
-    | Themes.Animated {empty_cup; fallen_cup; full_cup} ->
+    | Themes.Animated {empty_cup; fallen_cup; full_cup; _} ->
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
@@ -187,33 +187,80 @@ module Board = struct
 end
 
 module Dice = struct
-  type t = {base: Gl_geometry.t; cap: Gl_geometry.t; shader: Gl_shader.t}
+  type old = {base: Gl_geometry.t; cap: Gl_geometry.t; shader: Gl_shader.t}
 
-  let create proj =
-    let* base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
-    let* cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
-    let* shader = Gl_shader.create ["vertex"; "color"] in
-    Gl_shader.send_matrix shader "view" proj ;
-    Ok {base; cap; shader}
+  type textured =
+    {shader: Gl_shader.t; dice_1: Gl_geometry.t list; dice_2: Gl_geometry.t list}
+
+  type t = Old of old | New of textured
+
+  let load_dice themes Themes.{name; x; y; w; h} =
+    let obj = text_rectangle x y w h in
+    let texture = Themes.prepend_path themes name in
+    let frag_kind = `Textured in
+    Gl_geometry.of_arrays ~frag_kind ~texture obj
+
+  let flatten_result_list l =
+    List.fold_right
+      (fun g acc ->
+        let* l = acc in
+        let* geom = g in
+        Ok (geom :: l) )
+      l (Ok [])
+
+  let create themes proj =
+    match Themes.dice_style themes with
+    | Themes.Old ->
+        let* base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
+        let* cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
+        let* shader = Gl_shader.create ["vertex"; "color"] in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok (Old {base; cap; shader})
+    | Themes.Animated {dice_1; dice_2; _} ->
+        let v_filename = "shaders/textured.vert" in
+        let f_filename = "shaders/textured.frag" in
+        let* shader =
+          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+        in
+        let* dice_1 =
+          List.map (load_dice themes) dice_1 |> flatten_result_list
+        in
+        let* dice_2 =
+          List.map (load_dice themes) dice_2 |> flatten_result_list
+        in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok (New {shader; dice_1; dice_2})
 
   let base_factor = 0.2
   let cap_factor = 0.05
+  let is_on n = n <= 2
 
-  let draw t ~on ~x ~y =
-    let pid = t.shader.pid in
-    let trans =
-      Matrix.translation x y 0. |> Matrix.scale base_factor base_factor 0. in
-    Gl_geometry.draw ~trans pid t.base ;
-    if on then
-      let trans =
-        Matrix.translation x (y +. (base_factor -. cap_factor)) 0.
-        |> Matrix.scale cap_factor cap_factor 0. in
-      Gl_geometry.draw ~trans pid t.cap
+  let draw t ~n ~dice_n ~x ~y =
+    match t with
+    | Old t ->
+        let pid = t.shader.pid in
+        let trans =
+          Matrix.translation x y 0. |> Matrix.scale base_factor base_factor 0.
+        in
+        Gl_geometry.draw ~trans pid t.base ;
+        if is_on n then
+          let trans =
+            Matrix.translation x (y +. (base_factor -. cap_factor)) 0.
+            |> Matrix.scale cap_factor cap_factor 0. in
+          Gl_geometry.draw ~trans pid t.cap
+    | New t ->
+        let pid = t.shader.pid in
+        let trans = Matrix.translation x y 0. in
+        let d = if dice_n = 1 then t.dice_1 else t.dice_2 in
+        let g = List.nth d n in
+        Gl_geometry.draw ~trans pid g
 
-  let delete t =
-    Gl_geometry.delete t.base ;
-    Gl_geometry.delete t.cap ;
-    Gl_shader.delete t.shader
+  let delete = function
+    | Old t ->
+        Gl_geometry.delete t.base ;
+        Gl_geometry.delete t.cap ;
+        Gl_shader.delete t.shader
+    | New _ -> ()
 end
 
 module Pawn = struct

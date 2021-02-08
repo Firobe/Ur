@@ -18,7 +18,11 @@ type texture =
 type color_or_texture = Color of color | Texture of texture [@@deriving sexp]
 
 type animated_throw =
-  {empty_cup: texture; fallen_cup: texture; full_cup: texture}
+  { empty_cup: texture
+  ; fallen_cup: texture
+  ; full_cup: texture
+  ; dice_1: texture list
+  ; dice_2: texture list }
 [@@deriving sexp]
 
 type dice_style = Old | Animated of animated_throw [@@deriving sexp]

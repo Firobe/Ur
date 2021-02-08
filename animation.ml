@@ -3,7 +3,7 @@ type kind =
   | Wait
   | Pawn_moving of (Game.Logic.pawn * Game.Logic.move)
   | Menu_move of (int * int)
-  | Cannot_choose of (bool * bool * bool * bool)
+  | Cannot_choose of (int * int * int * int)
   | Victory
   | Score_up of Game.playerNo
   | Choice

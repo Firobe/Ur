@@ -32,6 +32,7 @@ type context =
   ; buffer_input: Input.t -> unit
   ; send_inputs: unit -> unit
   ; objects: objects
+  ; dice_ns: (int * int * int * int) option
   ; text: Gl_text.t }
 
 let gl = (4, 4)
@@ -155,10 +156,21 @@ let draw_dices (d1, d2, d3, d4) animation context =
   let x =
     match animation with None -> -1. | Some a -> Animation.progress a -. 2.
   in
-  Dice.draw context.objects.dice ~on:d1 ~x ~y:off ;
-  Dice.draw context.objects.dice ~on:d2 ~x ~y:(off +. 0.5) ;
-  Dice.draw context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
-  Dice.draw context.objects.dice ~on:d4 ~x ~y:(off +. 1.5)
+  let (dd1, dd2, dd3, dd4), context =
+    match context.dice_ns with
+    | None ->
+        let throw () =
+          let r = Random.bool () in
+          1 + if r then 1 else 0 in
+        let dns = (throw (), throw (), throw (), throw ()) in
+        (dns, {context with dice_ns= Some dns})
+    | Some x -> (x, context) in
+  let delta = 0.7 in
+  Dice.draw context.objects.dice ~n:d1 ~dice_n:dd1 ~x ~y:off ;
+  Dice.draw context.objects.dice ~n:d2 ~dice_n:dd2 ~x ~y:(off +. (delta *. 1.)) ;
+  Dice.draw context.objects.dice ~n:d3 ~dice_n:dd3 ~x ~y:(off +. (delta *. 2.)) ;
+  Dice.draw context.objects.dice ~n:d4 ~dice_n:dd4 ~x ~y:(off +. (delta *. 3.)) ;
+  context
 
 let draw_playing game themes animations context =
   let open Game in
@@ -170,11 +182,11 @@ let draw_playing game themes animations context =
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   (* Retrieve available choices and animation progress *)
-  let choices, choice_prog =
+  let choices, choice_prog, context =
     match game.gameplay with
     | Choose (p, dices, choices) when (player p).p_type = Human_player ->
         let choice_a = get_animation Choice animations in
-        draw_dices dices choice_a context ;
+        let context = draw_dices dices choice_a context in
         let choice_prog =
           match choice_a with
           | None -> 1.
@@ -182,10 +194,17 @@ let draw_playing game themes animations context =
               let prog = Animation.progress a in
               if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
         let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
-        (choice_pawns, choice_prog)
+        (choice_pawns, choice_prog, context)
     | _ ->
+        let context =
+          if
+            List.exists
+              (function {kind= Cannot_choose _; _} -> true | _ -> false)
+              animations
+          then context
+          else {context with dice_ns= None} in
         Cup.draw `Full context.objects.cup ;
-        ([], 1.) in
+        ([], 1., context) in
   (* Draw normal (non-hollow) non-moving pawns *)
   let normal_pawns =
     List.filter
@@ -243,18 +262,21 @@ let draw_playing game themes animations context =
     Gl_text.write text (color themes `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2
   in
   (* Draw cannot move if applicable *)
-  let* text =
+  let* text, context =
     match
       List.find_opt
         (function {kind= Cannot_choose _; _} -> true | _ -> false)
         animations
     with
     | Some {kind= Cannot_choose dices; _} ->
-        draw_dices dices None context ;
-        Gl_text.write text
-          (color themes `Alert)
-          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
-    | _ -> Ok text
+        let context = draw_dices dices None context in
+        let* text =
+          Gl_text.write text
+            (color themes `Alert)
+            ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
+        in
+        Ok (text, context)
+    | _ -> Ok (text, context)
   in
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
@@ -357,7 +379,7 @@ let init_objects themes =
   let* board = Board.create themes proj_matrix in
   let* background = Background.create themes proj_matrix in
   let* cup = Cup.create themes proj_matrix in
-  let* dice = Dice.create proj_matrix in
+  let* dice = Dice.create themes proj_matrix in
   Ok {pawn; board; dice; background; cup}
 
 let delete_objects {pawn; board; dice; background; cup} =
@@ -458,8 +480,10 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
     let* win, ctx, objects, text = init init_state in
     match
+      let dice_ns = None in
       let context =
-        {win; ctx; poll_state; buffer_input; send_inputs; objects; text} in
+        {win; ctx; poll_state; buffer_input; send_inputs; objects; text; dice_ns}
+      in
       let* last_context = loop init_state context in
       terminate last_context
     with
