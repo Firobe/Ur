@@ -31,7 +31,11 @@ type context =
 
 let gl = (4, 4)
 
-let clear_screen ?(r = 0.5) ?(g = 0.5) ?(b = 0.5) () =
+let clear_screen ?(prog = 1.0) themes =
+  let ir, ig, ib = Themes.background_color themes in
+  let r = float ir /. 256. *. prog in
+  let g = float ig /. 256. *. prog in
+  let b = float ib /. 256. *. prog in
   Gl.clear_color r g b 1. ;
   Gl.clear Gl.color_buffer_bit
 
@@ -49,25 +53,28 @@ let get_animation kind =
   let open Animation in
   List.find_opt (fun x -> x.kind = kind)
 
-let color = function
-  | `Black -> (0, 0, 0)
-  | `Selected -> (0, 80, 0)
-  | `Alert -> (200, 0, 0)
-  | `Red -> (255, 0, 0)
-  | `Blue -> (0, 0, 255)
+let color themes =
+  let open Themes in
+  let colors = text_colors themes in
+  function
+  | `Black -> colors.base
+  | `Selected -> colors.menu_selected
+  | `Alert -> colors.alert
+  | `Red -> colors.p1
+  | `Blue -> colors.p2
   | `Random -> (Random.int 256, Random.int 256, Random.int 256)
 
-let draw_title animations context =
+let draw_title themes animations context =
   let* text =
     match get_animation Title animations with
-    | None -> clear_screen () ; Ok context.text
+    | None -> clear_screen themes ; Ok context.text
     | Some t ->
-        let prog = Animation.progress t /. 2. in
-        clear_screen ~r:prog ~g:prog ~b:prog () ;
-        let y = (11. *. prog) -. 1. in
+        let prog = Animation.progress t in
+        clear_screen ~prog themes ;
+        let y = (6. *. prog) -. 1. in
         let* text =
           Gl_text.write context.text
-            (color `Black)
+            (color themes `Black)
             ~x:3.5 ~y ~scale:3. "Royal Game of Ur"
         in
         Ok text
@@ -75,7 +82,7 @@ let draw_title animations context =
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 
-let draw_menu m animations context =
+let draw_menu m themes animations context =
   let open Menu in
   let delta = float board_total_height /. (List.length m.choices |> float) in
   let with_heights =
@@ -98,13 +105,13 @@ let draw_menu m animations context =
         let dc = Menu.get_nth_choice m d in
         (Choice.eq dc, Choice.eq sc, Animation.progress a)
     | _ -> (Choice.eq cc, (fun _ -> false), 1.0) in
-  clear_screen () ;
+  clear_screen themes ;
   let* text =
     List.fold_left
       (fun text (y, c) ->
         let isc = is_current c in
         let iso = is_origin c in
-        let col = color (if isc || iso then `Selected else `Black) in
+        let col = color themes (if isc || iso then `Selected else `Black) in
         let local_progress =
           if isc then progress else if iso then 1. -. progress else 0. in
         let scale = 1. +. (0.2 *. local_progress) in
@@ -116,20 +123,19 @@ let draw_menu m animations context =
   Sdl.gl_swap_window context.win ;
   Ok {context with text}
 
-let draw_victory player animations context =
+let draw_victory player themes animations context =
   let* text =
     match get_animation Victory animations with
-    | None -> clear_screen () ; Ok context.text
+    | None -> clear_screen themes ; Ok context.text
     | Some t ->
         let prog = Animation.progress t /. 2. in
-        let r = if player = Game.P1 then 0.5 +. prog else 0.5 -. prog in
-        let b = if player = Game.P2 then 0.5 +. prog else 0.5 -. prog in
-        clear_screen ~r ~g:(0.5 -. prog) ~b () ;
+        clear_screen ~prog:(1. -. prog) themes ;
         let scale = if prog = 0. then 10000. else 1. /. prog in
+        let msg = Format.asprintf "Winner is %a" Game.pp_player player in
         let* text =
           Gl_text.write context.text
-            (color `Black)
-            ~x:3.6 ~y:1.5 ~scale "Victory"
+            (color themes `Black)
+            ~x:3.6 ~y:1.5 ~scale msg
         in
         Ok text
   in
@@ -146,10 +152,10 @@ let draw_dices (d1, d2, d3, d4) animation context =
   Dice.draw context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
   Dice.draw context.objects.dice ~on:d4 ~x ~y:(off +. 1.5)
 
-let draw_playing game animations context =
+let draw_playing game themes animations context =
   let open Game in
   let open Animation in
-  clear_screen () ;
+  clear_screen themes ;
   Board.draw context.objects.board ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
     P1 ;
@@ -202,9 +208,11 @@ let draw_playing game animations context =
     | None -> 1.
     | Some a -> 3. -. (2. *. Animation.progress a) in
   let* text =
-    Gl_text.write context.text (color `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
+    Gl_text.write context.text (color themes `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
   in
-  let* text = Gl_text.write text (color `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2 in
+  let* text =
+    Gl_text.write text (color themes `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2
+  in
   let* text =
     match
       List.find_opt
@@ -214,7 +222,7 @@ let draw_playing game animations context =
     | Some {kind= Cannot_choose dices; _} ->
         draw_dices dices None context ;
         Gl_text.write text
-          (color `Alert)
+          (color themes `Alert)
           ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
     | _ -> Ok text
   in
@@ -256,18 +264,19 @@ let draw_state state context =
   let f = function
     (* Title screen *)
     | Waiting (_, Title_screen, _) | Title_screen ->
-        draw_title state.animations context
+        draw_title state.themes state.animations context
     (* Menu *)
-    | Waiting (_, Menu m, _) | Menu m -> draw_menu m state.animations context
+    | Waiting (_, Menu m, _) | Menu m ->
+        draw_menu m state.themes state.animations context
     (* Computation only frames *)
     | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
         Ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
-        draw_playing g state.animations context
+        draw_playing g state.themes state.animations context
     (* Victory screen *)
     | Waiting (_, _, Victory_screen p) | Victory_screen p ->
-        draw_victory p state.animations context
+        draw_victory p state.themes state.animations context
     | _ -> Ok context in
   f state.kind
 
@@ -356,7 +365,7 @@ let create_window ~gl:(maj, min) ~w ~h =
 let destroy_window win ctx =
   Sdl.gl_delete_context ctx ; Sdl.destroy_window win ; Ok ()
 
-let init () =
+let init init_state =
   (* TODO propre ressource cleaning in case of error *)
   let* _ = Sdl.init Sdl.Init.video in
   (* Enable antialiasing *)
@@ -367,7 +376,7 @@ let init () =
   Gl.enable Gl.blend ;
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
   let* text = Gl_text.init proj_matrix in
-  let text = Gl_text.set_default text "klill.ttf" 42 in
+  let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
   let* pawn = Pawn.create proj_matrix in
   let* board = Board.create proj_matrix in
   let* dice = Dice.create proj_matrix in
@@ -383,7 +392,7 @@ let terminate context =
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
-    let* win, ctx, objects, text = init () in
+    let* win, ctx, objects, text = init init_state in
     let context =
       {win; ctx; poll_state; buffer_input; send_inputs; objects; text} in
     let* last_context = loop init_state context in

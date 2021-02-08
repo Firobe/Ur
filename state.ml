@@ -18,7 +18,8 @@ type kind =
   | Victory_screen of playerNo
   | End
 
-type t = {kind: kind; animations: Animation.t list; speed: float}
+type t =
+  {kind: kind; animations: Animation.t list; speed: float; themes: Themes.t}
 
 let is_same_kind k1 k2 =
   match (k1, k2) with
@@ -103,8 +104,10 @@ let transition_trigger state new_state =
   let open Animation in
   let wait_anim anim =
     let animations = anim :: new_state.animations in
-    {kind= Waiting (anim.id, state.kind, new_state.kind); animations; speed}
-  in
+    { kind= Waiting (anim.id, state.kind, new_state.kind)
+    ; animations
+    ; speed
+    ; themes= state.themes } in
   match (state.kind, new_state.kind) with
   (* Title screen *)
   | Title_screen, Menu _ -> wait_anim (anim_create title_time Title)
@@ -152,7 +155,7 @@ let reducer state inputs =
   if has_quit inputs then {state with kind= End}
   else
     let next ?(animations = state.animations) ?(speed = state.speed) kind =
-      {kind; animations; speed} in
+      {kind; animations; speed; themes= state.themes} in
     let new_state =
       match state.kind with
       | Title_screen -> title_reducer next

@@ -8,7 +8,8 @@ let rec game_loop state =
     let state' = State.reducer state inputs in
     game_loop state'
 
-let init_state = {kind= Title_screen; animations= []; speed= 1.0}
+let init_state =
+  {kind= Title_screen; animations= []; speed= 1.0; themes= Themes.load_themes ()}
 
 let go () =
   Random.self_init () ;
