@@ -370,7 +370,8 @@ let delete_objects {pawn; board; dice; background; cup} =
 let change_theme themes context =
   delete_objects context.objects ;
   let* objects = init_objects themes in
-  Result.ok {context with objects}
+  let text = Gl_text.set_default context.text (Themes.font themes) 42 in
+  Result.ok {context with objects; text}
 
 let rec loop state context =
   let open State in
