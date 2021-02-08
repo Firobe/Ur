@@ -169,18 +169,21 @@ let draw_playing game themes animations context =
     P1 ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
-  ( match game.gameplay with
+
+  (* Retrieve available choices and animation progress *)
+  let choices, choice_prog = match game.gameplay with
   | Choose (p, dices, choices) when (player p).p_type = Human_player ->
       let choice_a = get_animation Choice animations in
       draw_dices dices choice_a context ;
-      List.iter
-        (fun (pawn, _) ->
-          let choice =
-            match choice_a with None -> 1. | Some a -> Animation.progress a
-          in
-          Pawn.draw context.objects.pawn ~choice pawn )
-        choices
-  | _ -> () ) ;
+      let choice_prog = begin match choice_a with
+        | None -> 1.
+        | Some a -> Animation.progress a
+      end in
+      let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
+      choice_pawns, choice_prog 
+  | _ -> [], 1.
+  in
+  (* Draw normal (non-hollow) non-moving pawns *) 
   let normal_pawns =
     List.filter
       (fun pawn ->
@@ -192,7 +195,20 @@ let draw_playing game themes animations context =
                | _ -> false )
              animations )
       game.logic.pawns in
-  List.iter (Pawn.draw context.objects.pawn) normal_pawns ;
+  let is_choice p = List.exists ((=) p) choices in
+  List.iter (fun pawn ->
+      if is_choice pawn then
+        let choice = (`Full, choice_prog) in
+        Pawn.draw context.objects.pawn ~choice pawn
+      else
+        Pawn.draw context.objects.pawn pawn
+    ) normal_pawns ;
+
+  (* Draw hollow pawns *)
+  List.filter (fun p -> not @@ List.exists ((=) p) normal_pawns) choices
+  |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
+
+  (* Animate moving pawn *)
   List.iter
     (fun a ->
       let prog = Animation.progress a in
@@ -205,6 +221,7 @@ let draw_playing game themes animations context =
       | Pawn_moving (p, Finish) -> d p {p with position= Outro 2} prog
       | _ -> () )
     animations ;
+  (* Draw score (with potential animation *)
   let s1 = Printf.sprintf "%d" game.logic.p1.points in
   let s2 = Printf.sprintf "%d" game.logic.p2.points in
   let ss1 =
@@ -221,6 +238,7 @@ let draw_playing game themes animations context =
   let* text =
     Gl_text.write text (color themes `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2
   in
+  (* Draw cannot move if applicable *)
   let* text =
     match
       List.find_opt

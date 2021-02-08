@@ -80,8 +80,8 @@ module Board = struct
         let* shader = Gl_shader.create ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
-    | Themes.Texture texture ->
-        let obj = text_rectangle (-2.) (-1.) 11. 5. in
+    | Themes.Texture (texture, x, y, w, h) ->
+        let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
         let texture = Themes.prepend_path themes texture in
         let frag_kind = `Textured in
         let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
@@ -134,9 +134,13 @@ module Pawn = struct
   type t =
     { p1: Gl_geometry.t
     ; p2: Gl_geometry.t
+    ; p1a: Gl_geometry.t
+    ; p2a: Gl_geometry.t
     ; c: Gl_geometry.t
     ; s1: Gl_shader.t
     ; s2: Gl_shader.t
+    ; s1a: Gl_shader.t
+    ; s2a: Gl_shader.t
     ; sc: Gl_shader.t }
 
   let geom_from_sum themes =
@@ -147,8 +151,8 @@ module Pawn = struct
         let* geom = Gl_geometry.of_arrays @@ circle r g b 200 0.4 in
         let* shader = Gl_shader.create ["vertex"; "color"] in
         Result.ok (geom, shader)
-    | Texture texture ->
-        let obj = text_rectangle (-0.5) (-0.5) 1. 1. in
+    | Texture (texture, x, y, w, h) ->
+        let obj = text_rectangle (-0.5 +. x) (-0.5 +. y) w h in
         let texture = Themes.prepend_path themes texture in
         let frag_kind = `Textured in
         let* geom = Gl_geometry.of_arrays ~frag_kind ~texture obj in
@@ -162,11 +166,15 @@ module Pawn = struct
   let create themes proj =
     let* p1, s1 = geom_from_sum themes @@ Themes.p1_pawn themes in
     let* p2, s2 = geom_from_sum themes @@ Themes.p2_pawn themes in
+    let* p1a, s1a = geom_from_sum themes @@ Themes.p1_pawn_alt themes in
+    let* p2a, s2a = geom_from_sum themes @@ Themes.p2_pawn_alt themes in
     let* c, sc = geom_from_sum themes @@ Themes.hollow_pawn themes in
     Gl_shader.send_matrix s1 "view" proj ;
     Gl_shader.send_matrix s2 "view" proj ;
+    Gl_shader.send_matrix s1a "view" proj ;
+    Gl_shader.send_matrix s2a "view" proj ;
     Gl_shader.send_matrix sc "view" proj ;
-    Ok {p1; p2; c; s1; s2; sc}
+    Ok {p1; p2; p1a; p2a; c; s1; s2; s1a; s2a; sc}
 
   let pawn_to_float pawn =
     let pawn_to_coord = function
@@ -195,9 +203,12 @@ module Pawn = struct
       match choice with
       | None ->
           if Game.Logic.(pawn.owner) = P1 then (t.p1, t.s1) else (t.p2, t.s2)
-      | Some _ -> (t.c, t.sc) in
+      | Some (`Empty, _) -> (t.c, t.sc)
+      | Some (`Full, _) ->
+          if Game.Logic.(pawn.owner) = P1 then (t.p1a, t.s1a) else (t.p2a, t.s2a)
+    in
     let def_scale =
-      match choice with None -> 1. | Some x -> 1.6 -. (x /. 2.) in
+      match choice with None -> 1. | Some (_, x) -> 1.5 -. (x /. 2.) in
     let x, y, prog =
       match animate with
       | None ->
@@ -218,8 +229,12 @@ module Pawn = struct
   let delete t =
     Gl_geometry.delete t.p1 ;
     Gl_geometry.delete t.p2 ;
+    Gl_geometry.delete t.p1a ;
+    Gl_geometry.delete t.p2a ;
     Gl_geometry.delete t.c ;
     Gl_shader.delete t.s1 ;
     Gl_shader.delete t.s2 ;
+    Gl_shader.delete t.s1a ;
+    Gl_shader.delete t.s2a ;
     Gl_shader.delete t.sc
 end

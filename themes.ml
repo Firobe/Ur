@@ -7,7 +7,8 @@ type text_colors =
   {base: color; menu_selected: color; alert: color; p1: color; p2: color}
 [@@deriving sexp]
 
-type color_or_texture = Color of color | Texture of string [@@deriving sexp]
+type color_or_texture = Color of color
+| Texture of (string * float * float * float * float)  [@@deriving sexp]
 
 type theme =
   { background: color_or_texture
@@ -16,6 +17,8 @@ type theme =
   ; board: color_or_texture
   ; p1_pawn: color_or_texture
   ; p2_pawn: color_or_texture
+  ; p1_pawn_alt: color_or_texture
+  ; p2_pawn_alt: color_or_texture
   ; hollow_pawn: color_or_texture }
 [@@deriving sexp]
 
@@ -56,6 +59,8 @@ let font t = (current t).font |> prepend_path t
 let background t = (current t).background
 let p1_pawn t = (current t).p1_pawn
 let p2_pawn t = (current t).p2_pawn
+let p1_pawn_alt t = (current t).p1_pawn_alt
+let p2_pawn_alt t = (current t).p2_pawn_alt
 let hollow_pawn t = (current t).hollow_pawn
 let text_colors t = (current t).text_colors
 let board t = (current t).board
