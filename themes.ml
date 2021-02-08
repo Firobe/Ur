@@ -7,8 +7,10 @@ type text_colors =
   {base: color; menu_selected: color; alert: color; p1: color; p2: color}
 [@@deriving sexp]
 
-type color_or_texture = Color of color
-| Texture of (string * float * float * float * float)  [@@deriving sexp]
+type color_or_texture =
+  | Color of color
+  | Texture of (string * float * float * float * float)
+[@@deriving sexp]
 
 type theme =
   { background: color_or_texture

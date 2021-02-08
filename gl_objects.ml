@@ -44,13 +44,54 @@ let circle r g b n ra =
   let indices = Array.init (n + 2) (fun x -> x) in
   (Gl.triangle_fan, vertices, colors, indices)
 
+module Background = struct
+  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t}
+
+  let create themes proj =
+    match Themes.background themes with
+    | Themes.Color c ->
+        let r, g, b = color_to_floats c in
+        Gl.clear_color r g b 1. ;
+        let vertices =
+          [|-2.; -1.; 0.; 11.; -1.; 0.; 11.; 4.; 0.; -2.; 4.; 0.|] in
+        let colors =
+          Array.init (Array.length vertices) (fun i ->
+              match i mod 3 with 0 -> r | 1 -> g | _ -> b ) in
+        let indices = [|0; 1; 2; 2; 3; 0|] in
+        let* geometry =
+          Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
+        in
+        let* shader = Gl_shader.create ["vertex"; "color"] in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok {geometry; shader}
+    | Themes.Texture (texture, x, y, w, h) ->
+        let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
+        let texture = Themes.prepend_path themes texture in
+        let frag_kind = `Textured in
+        let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
+        let v_filename = "shaders/textured.vert" in
+        let f_filename = "shaders/textured.frag" in
+        let* shader =
+          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+        in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok {geometry; shader}
+
+  let draw t = Gl_geometry.draw t.shader.pid t.geometry
+
+  let delete t =
+    Gl_geometry.delete t.geometry ;
+    Gl_shader.delete t.shader
+end
+
 module Board = struct
   type t = {geometry: Gl_geometry.t; shader: Gl_shader.t}
 
   let create themes proj =
     (* Allow changing themes after launch *)
     match Themes.board themes with
-    | Themes.Color (r, g, b) ->
+    | Themes.Color c ->
+        let r, g, b = color_to_floats c in
         let vertices =
           Array.init
             (9 * 4 * 3)
@@ -61,8 +102,7 @@ module Board = struct
               match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. ) in
         let colors =
           Array.init (Array.length vertices) (fun i ->
-              match i mod 3 with 0 -> float r | 1 -> float g | _ -> float b )
-        in
+              match i mod 3 with 0 -> r | 1 -> g | _ -> b ) in
         let c x y = x + (9 * y) in
         let indices =
           [| (* Horizontal : bas en haut *)

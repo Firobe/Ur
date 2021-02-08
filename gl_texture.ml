@@ -30,7 +30,7 @@ let create_from_bmp path =
   let* surface =
     match Tsdl_image.Image.load path with
     | Some x -> Result.ok x
-    | None -> Result.error (`Msg "Could not load texture")
+    | None -> Result.error (`Msg ("Could not load texture " ^ path))
   in
   create_from_surface surface
 

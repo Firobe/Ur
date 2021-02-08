@@ -2,7 +2,7 @@ open Game
 open Game.Gameplay
 
 let move_time = 0.3
-let title_time = 1.0
+let title_time = 1.5
 let victory_time = 2.0
 let choice_time = 0.1
 let menu_move_time = 0.1

@@ -4,7 +4,7 @@ open Gl_utils
 open Result
 open Gl_objects
 
-let print_fps = false
+let print_fps = false 
 let enable_vsync = true
 let square_size = 150
 let board_width = 8
@@ -18,7 +18,8 @@ let board_total_height = board_height + board_offset_y + board_margin_y
 let window_width = board_total_width * square_size
 let window_height = board_total_height * square_size
 
-type objects = {pawn: Pawn.t; board: Board.t; dice: Dice.t}
+type objects =
+  {pawn: Pawn.t; board: Board.t; dice: Dice.t; background: Background.t}
 
 type context =
   { win: Sdl.window
@@ -30,19 +31,9 @@ type context =
   ; text: Gl_text.t }
 
 let gl = (4, 4)
-
-let clear_screen ?(prog = 1.0) themes =
-  let open Themes in
-  match background themes with
-  | Color (ir, ig, ib) ->
-      let r = float ir /. 255. *. prog in
-      let g = float ig /. 255. *. prog in
-      let b = float ib /. 255. *. prog in
-      Gl.clear_color r g b 1. ;
-      Gl.clear Gl.color_buffer_bit ;
-      Result.ok ()
-  | Texture _ -> Result.error (`Msg "Texture not supported in background")
-
+let clear_screen context =
+  Gl.clear Gl.color_buffer_bit ;
+  Background.draw context.objects.background
 let reshape _win w h = Gl.viewport 0 0 w h
 
 (* For the board *)
@@ -71,12 +62,10 @@ let color themes =
 let draw_title themes animations context =
   let* text =
     match get_animation Title animations with
-    | None ->
-        let* () = clear_screen themes in
-        Ok context.text
+    | None -> clear_screen context ; Ok context.text
     | Some t ->
         let prog = Animation.progress t in
-        let* () = clear_screen ~prog themes in
+        clear_screen context ;
         let y = (6. *. prog) -. 1. in
         let* text =
           Gl_text.write context.text
@@ -111,7 +100,7 @@ let draw_menu m themes animations context =
         let dc = Menu.get_nth_choice m d in
         (Choice.eq dc, Choice.eq sc, Animation.progress a)
     | _ -> (Choice.eq cc, (fun _ -> false), 1.0) in
-  let* () = clear_screen themes in
+  clear_screen context ;
   let* text =
     List.fold_left
       (fun text (y, c) ->
@@ -132,12 +121,10 @@ let draw_menu m themes animations context =
 let draw_victory player themes animations context =
   let* text =
     match get_animation Victory animations with
-    | None ->
-        let* () = clear_screen themes in
-        Ok context.text
+    | None -> clear_screen context ; Ok context.text
     | Some t ->
         let prog = Animation.progress t /. 2. in
-        let* () = clear_screen ~prog:(1. -. prog) themes in
+        clear_screen context ;
         let scale = if prog = 0. then 10000. else 1. /. prog in
         let msg = Format.asprintf "Winner is %a" Game.pp_player player in
         let* text =
@@ -163,27 +150,24 @@ let draw_dices (d1, d2, d3, d4) animation context =
 let draw_playing game themes animations context =
   let open Game in
   let open Animation in
-  let* () = clear_screen themes in
+  clear_screen context ;
   Board.draw context.objects.board ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
     P1 ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
   let player p = if p = P1 then game.logic.p1 else game.logic.p2 in
-
   (* Retrieve available choices and animation progress *)
-  let choices, choice_prog = match game.gameplay with
-  | Choose (p, dices, choices) when (player p).p_type = Human_player ->
-      let choice_a = get_animation Choice animations in
-      draw_dices dices choice_a context ;
-      let choice_prog = begin match choice_a with
-        | None -> 1.
-        | Some a -> Animation.progress a
-      end in
-      let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
-      choice_pawns, choice_prog 
-  | _ -> [], 1.
-  in
-  (* Draw normal (non-hollow) non-moving pawns *) 
+  let choices, choice_prog =
+    match game.gameplay with
+    | Choose (p, dices, choices) when (player p).p_type = Human_player ->
+        let choice_a = get_animation Choice animations in
+        draw_dices dices choice_a context ;
+        let choice_prog =
+          match choice_a with None -> 1. | Some a -> Animation.progress a in
+        let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
+        (choice_pawns, choice_prog)
+    | _ -> ([], 1.) in
+  (* Draw normal (non-hollow) non-moving pawns *)
   let normal_pawns =
     List.filter
       (fun pawn ->
@@ -195,19 +179,17 @@ let draw_playing game themes animations context =
                | _ -> false )
              animations )
       game.logic.pawns in
-  let is_choice p = List.exists ((=) p) choices in
-  List.iter (fun pawn ->
+  let is_choice p = List.exists (( = ) p) choices in
+  List.iter
+    (fun pawn ->
       if is_choice pawn then
         let choice = (`Full, choice_prog) in
         Pawn.draw context.objects.pawn ~choice pawn
-      else
-        Pawn.draw context.objects.pawn pawn
-    ) normal_pawns ;
-
+      else Pawn.draw context.objects.pawn pawn )
+    normal_pawns ;
   (* Draw hollow pawns *)
-  List.filter (fun p -> not @@ List.exists ((=) p) normal_pawns) choices
+  List.filter (fun p -> not @@ List.exists (( = ) p) normal_pawns) choices
   |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
-
   (* Animate moving pawn *)
   List.iter
     (fun a ->
@@ -351,11 +333,15 @@ let process_events context =
 let init_objects themes =
   let* pawn = Pawn.create themes proj_matrix in
   let* board = Board.create themes proj_matrix in
+  let* background = Background.create themes proj_matrix in
   let* dice = Dice.create proj_matrix in
-  Ok {pawn; board; dice}
+  Ok {pawn; board; dice; background}
 
-let delete_objects {pawn; board; dice} =
-  Pawn.delete pawn ; Board.delete board ; Dice.delete dice
+let delete_objects {pawn; board; dice; background} =
+  Pawn.delete pawn ;
+  Board.delete board ;
+  Dice.delete dice ;
+  Background.delete background
 
 let change_theme themes context =
   delete_objects context.objects ;
