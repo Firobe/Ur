@@ -49,9 +49,10 @@ let to_menu t =
     |> fst in
   (n, names)
 
-let selected t = List.assoc t.selected t.themes
+let current t = List.assoc t.selected t.themes
 let prepend_path t path = Printf.sprintf "%s/%s/%s" themes_dir t.selected path
-let font t = (selected t).font |> prepend_path t
-let background t = (selected t).background
-let text_colors t = (selected t).text_colors
-let board t = (selected t).board
+let font t = (current t).font |> prepend_path t
+let background t = (current t).background
+let text_colors t = (current t).text_colors
+let board t = (current t).board
+let selected t = t.selected

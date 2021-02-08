@@ -330,13 +330,33 @@ let process_events context =
   done ;
   !should_redraw
 
+let init_objects themes =
+  let* pawn = Pawn.create proj_matrix in
+  let* board = Board.create themes proj_matrix in
+  let* dice = Dice.create proj_matrix in
+  Ok {pawn; board; dice}
+
+let delete_objects {pawn; board; dice} =
+  Pawn.delete pawn ; Board.delete board ; Dice.delete dice
+
+let change_theme themes context =
+  delete_objects context.objects ;
+  let* objects = init_objects themes in
+  Result.ok {context with objects}
+
 let rec loop state context =
+  let open State in
   let should_redraw = process_events context in
   context.send_inputs () ;
   match context.poll_state () with
   | Some new_state ->
+      let* context =
+        if Themes.selected new_state.themes <> Themes.selected state.themes then
+          change_theme new_state.themes context
+        else Result.ok context
+      in
       let* context = draw_state new_state context in
-      if new_state.kind = State.End then (
+      if new_state.kind = End then (
         Format.printf "End of display loop@." ;
         Ok context )
       else loop new_state context
@@ -388,14 +408,12 @@ let init init_state =
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
   let* text = Gl_text.init proj_matrix in
   let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
-  let* pawn = Pawn.create proj_matrix in
-  let* board = Board.create init_state.themes proj_matrix in
-  let* dice = Dice.create proj_matrix in
+  let* objects = init_objects init_state.themes in
   Gl.enable Gl.multisample ;
-  Ok (win, ctx, {pawn; board; dice}, text)
+  Ok (win, ctx, objects, text)
 
 let terminate context =
-  Pawn.delete context.objects.pawn ;
+  delete_objects context.objects ;
   let* _ = destroy_window context.win context.ctx in
   Gl_text.terminate context.text ;
   Tsdl_image.Image.quit () ;
