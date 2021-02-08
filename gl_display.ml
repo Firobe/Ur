@@ -32,12 +32,16 @@ type context =
 let gl = (4, 4)
 
 let clear_screen ?(prog = 1.0) themes =
-  let ir, ig, ib = Themes.background_color themes in
-  let r = float ir /. 256. *. prog in
-  let g = float ig /. 256. *. prog in
-  let b = float ib /. 256. *. prog in
-  Gl.clear_color r g b 1. ;
-  Gl.clear Gl.color_buffer_bit
+  let open Themes in
+  match background themes with
+  | Color (ir, ig, ib) ->
+      let r = float ir /. 255. *. prog in
+      let g = float ig /. 255. *. prog in
+      let b = float ib /. 255. *. prog in
+      Gl.clear_color r g b 1. ;
+      Gl.clear Gl.color_buffer_bit ;
+      Result.ok ()
+  | Texture _ -> Result.error (`Msg "Texture not supported in background")
 
 let reshape _win w h = Gl.viewport 0 0 w h
 
@@ -67,10 +71,12 @@ let color themes =
 let draw_title themes animations context =
   let* text =
     match get_animation Title animations with
-    | None -> clear_screen themes ; Ok context.text
+    | None ->
+        let* () = clear_screen themes in
+        Ok context.text
     | Some t ->
         let prog = Animation.progress t in
-        clear_screen ~prog themes ;
+        let* () = clear_screen ~prog themes in
         let y = (6. *. prog) -. 1. in
         let* text =
           Gl_text.write context.text
@@ -105,7 +111,7 @@ let draw_menu m themes animations context =
         let dc = Menu.get_nth_choice m d in
         (Choice.eq dc, Choice.eq sc, Animation.progress a)
     | _ -> (Choice.eq cc, (fun _ -> false), 1.0) in
-  clear_screen themes ;
+  let* () = clear_screen themes in
   let* text =
     List.fold_left
       (fun text (y, c) ->
@@ -126,10 +132,12 @@ let draw_menu m themes animations context =
 let draw_victory player themes animations context =
   let* text =
     match get_animation Victory animations with
-    | None -> clear_screen themes ; Ok context.text
+    | None ->
+        let* () = clear_screen themes in
+        Ok context.text
     | Some t ->
         let prog = Animation.progress t /. 2. in
-        clear_screen ~prog:(1. -. prog) themes ;
+        let* () = clear_screen ~prog:(1. -. prog) themes in
         let scale = if prog = 0. then 10000. else 1. /. prog in
         let msg = Format.asprintf "Winner is %a" Game.pp_player player in
         let* text =
@@ -155,7 +163,7 @@ let draw_dices (d1, d2, d3, d4) animation context =
 let draw_playing game themes animations context =
   let open Game in
   let open Animation in
-  clear_screen themes ;
+  let* () = clear_screen themes in
   Board.draw context.objects.board ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
     P1 ;
@@ -378,7 +386,7 @@ let init init_state =
   let* text = Gl_text.init proj_matrix in
   let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
   let* pawn = Pawn.create proj_matrix in
-  let* board = Board.create proj_matrix in
+  let* board = Board.create init_state.themes proj_matrix in
   let* dice = Dice.create proj_matrix in
   Gl.enable Gl.multisample ;
   Ok (win, ctx, {pawn; board; dice}, text)

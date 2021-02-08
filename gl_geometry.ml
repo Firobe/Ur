@@ -9,9 +9,15 @@ type raw =
   { vertices: float_bigarray
   ; frags: float_bigarray * [`Colored | `Textured]
   ; indices: int_bigarray
-  ; mode: int }
+  ; mode: int
+  ; texture: string option }
 
-type t = {gid: int; bids: int list; length: int; mode: int}
+type t =
+  { gid: int
+  ; bids: int list
+  ; length: int
+  ; mode: int
+  ; texture: Gl_texture.t option }
 
 let create raw =
   let gid = get_int (Gl.gen_vertex_arrays 1) in
@@ -32,27 +38,41 @@ let create raw =
   Gl.bind_vertex_array 0 ;
   Gl.bind_buffer Gl.array_buffer 0 ;
   Gl.bind_buffer Gl.element_array_buffer 0 ;
-  let result =
-    {gid; bids= [iid; vid; cid]; length= Bigarray.Array1.dim raw.indices; mode}
+  let* texture =
+    match raw.texture with
+    | Some s ->
+        let* texture = Gl_texture.create_from_bmp s in
+        Result.ok (Some texture)
+    | None -> Result.ok None
   in
-  result
+  let result =
+    { gid
+    ; bids= [iid; vid; cid]
+    ; length= Bigarray.Array1.dim raw.indices
+    ; mode
+    ; texture } in
+  Result.ok result
 
-let of_arrays ?(frag_kind = `Colored) (mode, v, c, i) =
+let of_arrays ?texture ?(frag_kind = `Colored) (mode, v, c, i) =
   let raw =
     { vertices= bigarray_of Bigarray.float32 v
     ; frags= (bigarray_of Bigarray.float32 c, frag_kind)
     ; indices= bigarray_of Bigarray.int8_unsigned i
-    ; mode } in
+    ; mode
+    ; texture } in
   create raw
 
 let delete t =
   set_int (Gl.delete_vertex_arrays 1) t.gid ;
-  List.iter delete_buffer t.bids
+  List.iter delete_buffer t.bids ;
+  ignore @@ Option.map Gl_texture.delete t.texture
 
 let draw ?(trans = Matrix.identity) pid t =
+  (match t.texture with Some tex -> Gl_texture.bind tex | None -> ()) ;
   Gl.use_program pid ;
   let matid = Gl.get_uniform_location pid "model" in
   Gl.uniform_matrix4fv matid 1 false (Matrix.raw trans) ;
   Gl.bind_vertex_array t.gid ;
   Gl.draw_elements t.mode t.length Gl.unsigned_byte (`Offset 0) ;
-  Gl.bind_vertex_array 0
+  Gl.bind_vertex_array 0 ;
+  Gl.bind_texture Gl.texture_2d 0

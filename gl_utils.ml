@@ -30,3 +30,9 @@ let get_string len f =
   f a ; Gl.string_of_bigarray a
 
 let str = Printf.sprintf
+
+let text_rectangle x y w h =
+  ( Gl.triangles
+  , [|x; y; 0.; x +. w; y; 0.; x +. w; y +. h; 0.; x; y +. h; 0.|]
+  , [|0.; 1.; 1.; 1.; 1.; 0.; 0.; 0.|]
+  , [|0; 1; 3; 2; 1; 3|] )

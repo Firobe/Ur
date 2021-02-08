@@ -7,12 +7,15 @@ type text_colors =
   {base: color; menu_selected: color; alert: color; p1: color; p2: color}
 [@@deriving sexp]
 
+type color_or_texture = Color of color | Texture of string [@@deriving sexp]
+
 type theme =
-  { background_color: color
+  { background: color_or_texture
   ; text_colors: text_colors
   ; font: string
-  ; board_texture: string
-  ; pawn_texture: string }
+  ; board: color_or_texture
+  ; p1_pawn: color_or_texture
+  ; p2_pawn: color_or_texture }
 [@@deriving sexp]
 
 type t = {themes: (string * theme) list; selected: string}
@@ -47,7 +50,8 @@ let to_menu t =
   (n, names)
 
 let selected t = List.assoc t.selected t.themes
-let prepend_path name path = Printf.sprintf "%s/%s/%s" themes_dir name path
-let font t = (selected t).font |> prepend_path t.selected
-let background_color t = (selected t).background_color
+let prepend_path t path = Printf.sprintf "%s/%s/%s" themes_dir t.selected path
+let font t = (selected t).font |> prepend_path t
+let background t = (selected t).background
 let text_colors t = (selected t).text_colors
+let board t = (selected t).board

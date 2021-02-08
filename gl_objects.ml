@@ -47,31 +47,51 @@ let circle r g b n =
 module Board = struct
   type t = {geometry: Gl_geometry.t; shader: Gl_shader.t}
 
-  let create proj =
-    let vertices =
-      Array.init
-        (9 * 4 * 3)
-        (fun i ->
-          let c = i / 3 in
-          let y = c / 9 in
-          let x = c mod 9 in
-          match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. ) in
-    let colors = Array.make (Array.length vertices) 1. in
-    let c x y = x + (9 * y) in
-    let indices =
-      [| (* Horizontal : bas en haut *)
-         c 0 0; c 4 0; c 6 0; c 8 0; c 0 1; c 8 1; c 0 2; c 8 2; c 0 3; c 4 3
-       ; c 6 3; c 8 3; (* Vertical : gauche à droite *)
-                       c 0 0; c 0 3; c 1 0; c 1 3; c 2 0; c 2 3; c 3 0; c 3 3
-       ; c 4 0; c 4 3; c 5 1; c 5 2; c 6 0; c 6 3; c 7 0; c 7 3; c 8 0; c 8 3
-       ; (* Rosaces : haut en bas*)
-         c 0 0; c 1 1; c 0 1; c 1 0; c 6 0; c 7 1; c 6 1; c 7 0; c 3 1; c 4 2
-       ; c 3 2; c 4 1; c 0 2; c 1 3; c 0 3; c 1 2; c 6 2; c 7 3; c 6 3; c 7 2
-      |] in
-    let geometry = Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices) in
-    let* shader = Gl_shader.create ["vertex"; "color"] in
-    Gl_shader.send_matrix shader "view" proj ;
-    Ok {geometry; shader}
+  let create themes proj =
+    (* Allow changing themes after launch *)
+    match Themes.board themes with
+    | Themes.Color (r, g, b) ->
+        let vertices =
+          Array.init
+            (9 * 4 * 3)
+            (fun i ->
+              let c = i / 3 in
+              let y = c / 9 in
+              let x = c mod 9 in
+              match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. ) in
+        let colors =
+          Array.init (Array.length vertices) (fun i ->
+              match i mod 3 with 0 -> float r | 1 -> float g | _ -> float b )
+        in
+        let c x y = x + (9 * y) in
+        let indices =
+          [| (* Horizontal : bas en haut *)
+             c 0 0; c 4 0; c 6 0; c 8 0; c 0 1; c 8 1; c 0 2; c 8 2; c 0 3
+           ; c 4 3; c 6 3; c 8 3; (* Vertical : gauche à droite *)
+                                  c 0 0; c 0 3; c 1 0; c 1 3; c 2 0; c 2 3
+           ; c 3 0; c 3 3; c 4 0; c 4 3; c 5 1; c 5 2; c 6 0; c 6 3; c 7 0
+           ; c 7 3; c 8 0; c 8 3; (* Rosaces : haut en bas*)
+                                  c 0 0; c 1 1; c 0 1; c 1 0; c 6 0; c 7 1
+           ; c 6 1; c 7 0; c 3 1; c 4 2; c 3 2; c 4 1; c 0 2; c 1 3; c 0 3
+           ; c 1 2; c 6 2; c 7 3; c 6 3; c 7 2 |] in
+        let* geometry =
+          Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
+        in
+        let* shader = Gl_shader.create ["vertex"; "color"] in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok {geometry; shader}
+    | Themes.Texture texture ->
+        let obj = text_rectangle (-2.) (-1.) 11. 5. in
+        let texture = Themes.prepend_path themes texture in
+        let frag_kind = `Textured in
+        let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
+        let v_filename = "shaders/textured.vert" in
+        let f_filename = "shaders/textured.frag" in
+        let* shader =
+          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+        in
+        Gl_shader.send_matrix shader "view" proj ;
+        Ok {geometry; shader}
 
   let draw t = Gl_geometry.draw t.shader.pid t.geometry
 
@@ -84,8 +104,8 @@ module Dice = struct
   type t = {base: Gl_geometry.t; cap: Gl_geometry.t; shader: Gl_shader.t}
 
   let create proj =
-    let base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
-    let cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
+    let* base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
+    let* cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
     let* shader = Gl_shader.create ["vertex"; "color"] in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {base; cap; shader}
@@ -115,9 +135,9 @@ module Pawn = struct
     {p1: Gl_geometry.t; p2: Gl_geometry.t; c: Gl_geometry.t; shader: Gl_shader.t}
 
   let create proj =
-    let p1 = Gl_geometry.of_arrays @@ circle 1.0 0. 0. 200 in
-    let p2 = Gl_geometry.of_arrays @@ circle 0. 0. 1. 200 in
-    let c = Gl_geometry.of_arrays @@ circle 1. 1. 0. 200 in
+    let* p1 = Gl_geometry.of_arrays @@ circle 1.0 0. 0. 200 in
+    let* p2 = Gl_geometry.of_arrays @@ circle 0. 0. 1. 200 in
+    let* c = Gl_geometry.of_arrays @@ circle 1. 1. 0. 200 in
     let* shader = Gl_shader.create ["vertex"; "color"] in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {p1; p2; c; shader}
