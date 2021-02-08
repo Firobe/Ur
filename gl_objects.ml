@@ -64,9 +64,9 @@ module Background = struct
         let* shader = Gl_shader.create ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
-    | Themes.Texture (texture, x, y, w, h) ->
+    | Themes.Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
-        let texture = Themes.prepend_path themes texture in
+        let texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in
@@ -82,6 +82,52 @@ module Background = struct
   let delete t =
     Gl_geometry.delete t.geometry ;
     Gl_shader.delete t.shader
+end
+
+module Cup = struct
+  type r =
+    { empty: Gl_geometry.t
+    ; fallen: Gl_geometry.t
+    ; full: Gl_geometry.t
+    ; shader: Gl_shader.t }
+
+  type t = r option
+
+  let load_cup themes Themes.{name; x; y; w; h} =
+    let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
+    let texture = Themes.prepend_path themes name in
+    let frag_kind = `Textured in
+    Gl_geometry.of_arrays ~frag_kind ~texture obj
+
+  let create themes proj =
+    match Themes.dice_style themes with
+    | Themes.Old -> Result.ok None
+    | Themes.Animated {empty_cup; fallen_cup; full_cup} ->
+        let v_filename = "shaders/textured.vert" in
+        let f_filename = "shaders/textured.frag" in
+        let* shader =
+          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+        in
+        let* fallen = load_cup themes fallen_cup in
+        let* empty = load_cup themes empty_cup in
+        let* full = load_cup themes full_cup in
+        Gl_shader.send_matrix shader "view" proj ;
+        Result.ok (Some {fallen; empty; full; shader})
+
+  let draw kind t =
+    match (t, kind) with
+    | None, _ -> ()
+    | Some t, `Empty -> Gl_geometry.draw t.shader.pid t.empty
+    | Some t, `Full -> Gl_geometry.draw t.shader.pid t.full
+    | Some t, `Fallen -> Gl_geometry.draw t.shader.pid t.fallen
+
+  let delete = function
+    | None -> ()
+    | Some t ->
+        Gl_geometry.delete t.empty ;
+        Gl_geometry.delete t.full ;
+        Gl_geometry.delete t.fallen ;
+        Gl_shader.delete t.shader
 end
 
 module Board = struct
@@ -120,9 +166,9 @@ module Board = struct
         let* shader = Gl_shader.create ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
-    | Themes.Texture (texture, x, y, w, h) ->
+    | Themes.Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
-        let texture = Themes.prepend_path themes texture in
+        let texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in
@@ -191,9 +237,9 @@ module Pawn = struct
         let* geom = Gl_geometry.of_arrays @@ circle r g b 200 0.4 in
         let* shader = Gl_shader.create ["vertex"; "color"] in
         Result.ok (geom, shader)
-    | Texture (texture, x, y, w, h) ->
+    | Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-0.5 +. x) (-0.5 +. y) w h in
-        let texture = Themes.prepend_path themes texture in
+        let texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geom = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in

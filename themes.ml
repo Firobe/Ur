@@ -7,16 +7,28 @@ type text_colors =
   {base: color; menu_selected: color; alert: color; p1: color; p2: color}
 [@@deriving sexp]
 
-type color_or_texture =
-  | Color of color
-  | Texture of (string * float * float * float * float)
+type texture =
+  { name: string
+  ; x: float [@default 0.]
+  ; y: float [@default 0.]
+  ; w: float [@default 1.]
+  ; h: float [@default 1.] }
 [@@deriving sexp]
+
+type color_or_texture = Color of color | Texture of texture [@@deriving sexp]
+
+type animated_throw =
+  {empty_cup: texture; fallen_cup: texture; full_cup: texture}
+[@@deriving sexp]
+
+type dice_style = Old | Animated of animated_throw [@@deriving sexp]
 
 type theme =
   { background: color_or_texture
   ; text_colors: text_colors
   ; font: string
   ; board: color_or_texture
+  ; dice_style: dice_style
   ; p1_pawn: color_or_texture
   ; p2_pawn: color_or_texture
   ; p1_pawn_alt: color_or_texture
@@ -66,4 +78,5 @@ let p2_pawn_alt t = (current t).p2_pawn_alt
 let hollow_pawn t = (current t).hollow_pawn
 let text_colors t = (current t).text_colors
 let board t = (current t).board
+let dice_style t = (current t).dice_style
 let selected t = t.selected

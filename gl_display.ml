@@ -19,7 +19,11 @@ let window_width = board_total_width * square_size
 let window_height = board_total_height * square_size
 
 type objects =
-  {pawn: Pawn.t; board: Board.t; dice: Dice.t; background: Background.t}
+  { pawn: Pawn.t
+  ; board: Board.t
+  ; dice: Dice.t
+  ; background: Background.t
+  ; cup: Cup.t }
 
 type context =
   { win: Sdl.window
@@ -140,10 +144,13 @@ let draw_victory player themes animations context =
   Ok {context with text}
 
 let draw_dices (d1, d2, d3, d4) animation context =
-  let x =
-    match animation with None -> -1. | Some a -> -2. +. Animation.progress a
-  in
+  let prog =
+    match animation with None -> -1. | Some a -> Animation.progress a in
+  if prog < 0.1 then Cup.draw `Full context.objects.cup
+  else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
+  else Cup.draw `Empty context.objects.cup ;
   let off = 1. in
+  let x = if prog = -1. then -1. else prog -. 2. in
   Dice.draw context.objects.dice ~on:d1 ~x ~y:off ;
   Dice.draw context.objects.dice ~on:d2 ~x ~y:(off +. 0.5) ;
   Dice.draw context.objects.dice ~on:d3 ~x ~y:(off +. 1.0) ;
@@ -168,7 +175,9 @@ let draw_playing game themes animations context =
           match choice_a with None -> 1. | Some a -> Animation.progress a in
         let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
         (choice_pawns, choice_prog)
-    | _ -> ([], 1.) in
+    | _ ->
+        Cup.draw `Full context.objects.cup ;
+        ([], 1.) in
   (* Draw normal (non-hollow) non-moving pawns *)
   let normal_pawns =
     List.filter
@@ -336,14 +345,16 @@ let init_objects themes =
   let* pawn = Pawn.create themes proj_matrix in
   let* board = Board.create themes proj_matrix in
   let* background = Background.create themes proj_matrix in
+  let* cup = Cup.create themes proj_matrix in
   let* dice = Dice.create proj_matrix in
-  Ok {pawn; board; dice; background}
+  Ok {pawn; board; dice; background; cup}
 
-let delete_objects {pawn; board; dice; background} =
+let delete_objects {pawn; board; dice; background; cup} =
   Pawn.delete pawn ;
   Board.delete board ;
   Dice.delete dice ;
-  Background.delete background
+  Background.delete background ;
+  Cup.delete cup
 
 let change_theme themes context =
   delete_objects context.objects ;
