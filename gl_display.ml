@@ -4,7 +4,7 @@ open Gl_utils
 open Result
 open Gl_objects
 
-let print_fps = false 
+let print_fps = false
 let enable_vsync = true
 let square_size = 150
 let board_width = 8
@@ -31,9 +31,11 @@ type context =
   ; text: Gl_text.t }
 
 let gl = (4, 4)
+
 let clear_screen context =
   Gl.clear Gl.color_buffer_bit ;
   Background.draw context.objects.background
+
 let reshape _win w h = Gl.viewport 0 0 w h
 
 (* For the board *)
