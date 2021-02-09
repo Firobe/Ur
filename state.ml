@@ -1,13 +1,13 @@
 open Game
 open Game.Gameplay
 
-let move_time = 0.3
+let move_time = 0.6
 let title_time = 1.5
-let victory_time = 2.0
-let choice_time = 0.5
+let victory_time = 5.0
+let choice_time = 1.0
 let menu_move_time = 0.1
-let cannot_choose_time = 1.0
-let score_up_time = 0.25
+let cannot_choose_time = 2.0
+let score_up_time = 0.5
 let debug = false
 
 type kind =

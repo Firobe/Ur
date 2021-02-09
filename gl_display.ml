@@ -148,10 +148,13 @@ let draw_menu m themes animations context =
   Ok {context with text}
 
 let draw_victory player themes animations context =
-  let* text =
+  let* context =
     match get_animation Victory animations with
-    | None -> clear_screen context ; Ok context.text
+    | None -> clear_screen context ; Ok context
     | Some t ->
+        let* sounds =
+          Gl_audio.play_theme ~anim_unique:t context.sounds `victory
+        in
         let prog = Animation.progress t /. 2. in
         clear_screen context ;
         let scale = if prog = 0. then 10000. else 1. /. prog in
@@ -161,10 +164,10 @@ let draw_victory player themes animations context =
             (color themes `Black)
             ~x:3.6 ~y:1.5 ~scale msg
         in
-        Ok text
+        Ok {context with text; sounds}
   in
   Sdl.gl_swap_window context.win ;
-  Ok {context with text}
+  Ok context
 
 let throw_dice_data () =
   let throw () =
@@ -213,14 +216,24 @@ let draw_dices (d1, d2, d3, d4) animation context =
       Dice.draw context.objects.dice ~n ~dice_n ~x ~y )
     kinds_and_coords [d1; d2; d3; d4] ;
   (* Draw cup *)
-  ( match animation with
-  | None -> Cup.draw `Empty context.objects.cup
+  match animation with
+  | None ->
+      Cup.draw `Empty context.objects.cup ;
+      Ok context
   | Some a ->
       let prog = Animation.progress a in
-      if prog < 0.1 then Cup.draw `Full context.objects.cup
-      else if prog < 0.9 then Cup.draw `Fallen context.objects.cup
-      else Cup.draw `Empty context.objects.cup ) ;
-  context
+      if prog < 0.1 then (
+        Cup.draw `Full context.objects.cup ;
+        Ok context )
+      else if prog < 0.9 then (
+        let* sounds =
+          Gl_audio.play_theme ~anim_unique:a context.sounds `cup_thrown
+        in
+        Cup.draw `Fallen context.objects.cup ;
+        Result.ok {context with sounds} )
+      else (
+        Cup.draw `Empty context.objects.cup ;
+        Ok context )
 
 let draw_playing game themes animations context =
   let open Game in
@@ -234,12 +247,12 @@ let draw_playing game themes animations context =
   let* context = play_animation_sound animations context `select in
   let _player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   (* Retrieve available choices and animation progress *)
-  let choices, choice_prog, context =
+  let* choices, choice_prog, context =
     match game.gameplay with
     | Choose (_p, dices, choices) (*  when (player p).p_type = Human_player *)
       ->
         let choice_a = get_animation Choice animations in
-        let context = draw_dices dices choice_a context in
+        let* context = draw_dices dices choice_a context in
         let choice_prog =
           match choice_a with
           | None -> 1.
@@ -247,7 +260,7 @@ let draw_playing game themes animations context =
               let prog = Animation.progress a in
               if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
         let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
-        (choice_pawns, choice_prog, context)
+        Result.ok (choice_pawns, choice_prog, context)
     | _ ->
         let context =
           if
@@ -257,7 +270,8 @@ let draw_playing game themes animations context =
           then context
           else {context with dice_data= None} in
         Cup.draw `Full context.objects.cup ;
-        ([], 1., context) in
+        Result.ok ([], 1., context)
+  in
   (* Draw normal (non-hollow) non-moving pawns *)
   let normal_pawns =
     List.filter
@@ -345,7 +359,7 @@ let draw_playing game themes animations context =
         animations
     with
     | Some ({kind= Cannot_choose dices; _} as a) ->
-        let context = draw_dices dices None context in
+        let* context = draw_dices dices None context in
         let* text =
           Gl_text.write text
             (color themes `Alert)

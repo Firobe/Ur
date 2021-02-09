@@ -29,6 +29,7 @@ type dice_style = Old | Animated of animated_throw [@@deriving sexp]
 
 type sound_type =
   [ `title
+  | `victory
   | `menu_choice
   | `menu_option
   | `select
