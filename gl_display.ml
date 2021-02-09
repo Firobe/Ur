@@ -35,6 +35,7 @@ type context =
   ; send_inputs: unit -> unit
   ; objects: objects
   ; dice_data: dice_data option
+  ; sounds: Gl_audio.t
   ; text: Gl_text.t }
 
 let gl = (4, 4)
@@ -98,17 +99,25 @@ let draw_menu m themes animations context =
       m.choices in
   let cc = Menu.get_current_choice m in
   let open Animation in
-  let is_current, is_origin, progress =
+  let* is_current, is_origin, progress, context =
     match
       List.find_opt
         (fun a -> match a.kind with Menu_move _ -> true | _ -> false)
         animations
     with
     | Some ({kind= Menu_move (s, d); _} as a) ->
+        let* sounds =
+          Gl_audio.play_theme ~anim_unique:a context.sounds `menu_choice
+        in
         let sc = Menu.get_nth_choice m s in
         let dc = Menu.get_nth_choice m d in
-        (Choice.eq dc, Choice.eq sc, Animation.progress a)
-    | _ -> (Choice.eq cc, (fun _ -> false), 1.0) in
+        Result.ok
+          ( Choice.eq dc
+          , Choice.eq sc
+          , Animation.progress a
+          , {context with sounds} )
+    | _ -> Result.ok (Choice.eq cc, (fun _ -> false), 1.0, context)
+  in
   clear_screen context ;
   let* text =
     List.fold_left
@@ -422,9 +431,11 @@ let delete_objects {pawn; board; dice; background; cup} =
 
 let change_theme themes context =
   delete_objects context.objects ;
+  Gl_audio.delete_sounds context.sounds ;
+  let* sounds = Gl_audio.load_theme themes in
   let* objects = init_objects themes in
   let text = Gl_text.set_default context.text (Themes.font themes) 42 in
-  Result.ok {context with objects; text}
+  Result.ok {context with objects; text; sounds}
 
 let rec loop state context =
   let open State in
@@ -477,13 +488,16 @@ let destroy_window win ctx =
 
 let terminate_video win ctx text =
   let* _ = destroy_window win ctx in
-  Gl_text.terminate text ; Tsdl_image.Image.quit () ; Sdl.quit () ; Ok ()
+  Gl_text.terminate text ;
+  Gl_audio.terminate () ;
+  Gl_texture.terminate () ;
+  Sdl.quit () ;
+  Ok ()
 
 let init init_state =
-  let open Tsdl_image in
-  let* _ = Sdl.init Sdl.Init.video in
-  let img_flags = Image.Init.(jpg + png) in
-  assert (Image.init img_flags = img_flags) ;
+  let* _ = Sdl.init Sdl.Init.(video + audio) in
+  let* _ = Gl_texture.init () in
+  let* _ = Gl_audio.init () in
   (* Enable antialiasing *)
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplebuffers 1 in
   let* _ = Sdl.gl_set_attribute Sdl.Gl.multisamplesamples 16 in
@@ -493,23 +507,24 @@ let init init_state =
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
   let* text = Gl_text.init proj_matrix in
   let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
-  let* objects =
-    match init_objects init_state.themes with
+  let clean_guard = function
     | Ok o -> Ok o
     | Error (`Msg e) ->
         let* () = terminate_video win ctx text in
-        Error (`Msg e)
-  in
+        Error (`Msg e) in
+  let* objects = clean_guard @@ init_objects init_state.themes in
+  let* sounds = clean_guard @@ Gl_audio.load_theme init_state.themes in
   Gl.enable Gl.multisample ;
-  Ok (win, ctx, objects, text)
+  Ok (win, ctx, objects, text, sounds)
 
 let terminate context =
   delete_objects context.objects ;
+  Gl_audio.delete_sounds context.sounds ;
   terminate_video context.win context.ctx context.text
 
 let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
   match
-    let* win, ctx, objects, text = init init_state in
+    let* win, ctx, objects, text, sounds = init init_state in
     match
       let dice_data = None in
       let context =
@@ -520,6 +535,7 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
         ; send_inputs
         ; objects
         ; text
+        ; sounds
         ; dice_data } in
       let* last_context = loop init_state context in
       terminate last_context

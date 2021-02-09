@@ -26,6 +26,7 @@ type animated_throw =
 [@@deriving sexp]
 
 type dice_style = Old | Animated of animated_throw [@@deriving sexp]
+type sound_type = [`menu_choice] [@@deriving sexp]
 
 type theme =
   { background: color_or_texture
@@ -37,7 +38,8 @@ type theme =
   ; p2_pawn: color_or_texture
   ; p1_pawn_alt: color_or_texture
   ; p2_pawn_alt: color_or_texture
-  ; hollow_pawn: color_or_texture }
+  ; hollow_pawn: color_or_texture
+  ; sounds: (sound_type * string * float) list [@sexp.list] }
 [@@deriving sexp]
 
 type t = {themes: (string * theme) list; selected: string}
@@ -83,4 +85,5 @@ let hollow_pawn t = (current t).hollow_pawn
 let text_colors t = (current t).text_colors
 let board t = (current t).board
 let dice_style t = (current t).dice_style
+let sounds t = (current t).sounds
 let selected t = t.selected

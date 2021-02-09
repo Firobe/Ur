@@ -7,6 +7,14 @@ type t = {tid: int; surface: Sdl.surface; width: int; height: int}
 let width t = t.width
 let height t = t.height
 
+let init () =
+  let open Tsdl_image in
+  let img_flags = Image.Init.(jpg + png) in
+  if Image.init img_flags = img_flags then Result.ok ()
+  else Result.error (`Msg "Failed to load JPG/PNG support")
+
+let terminate () = Tsdl_image.Image.quit ()
+
 let create_from_surface raw_surface =
   let kind = Bigarray.Int8_unsigned in
   let dest_format = Sdl.Pixel.format_argb8888 in

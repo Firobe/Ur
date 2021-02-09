@@ -39,3 +39,11 @@ let text_rectangle x y w h =
 
 let color_to_floats (r, g, b) =
   (float r /. 255., float g /. 255., float b /. 255.)
+
+let flatten_result_list l =
+  List.fold_right
+    (fun g acc ->
+      let* l = acc in
+      let* geom = g in
+      Ok (geom :: l) )
+    l (Ok [])

@@ -200,14 +200,6 @@ module Dice = struct
     let frag_kind = `Textured in
     Gl_geometry.of_arrays ~frag_kind ~texture obj
 
-  let flatten_result_list l =
-    List.fold_right
-      (fun g acc ->
-        let* l = acc in
-        let* geom = g in
-        Ok (geom :: l) )
-      l (Ok [])
-
   let create themes proj =
     match Themes.dice_style themes with
     | Themes.Old ->

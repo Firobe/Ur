@@ -27,3 +27,5 @@ let progress t =
   if now < t.start then 0.
   else if now > t.start +. t.length then 1.
   else (now -. t.start) /. t.length
+
+let eq t1 t2 = t1.id = t2.id
