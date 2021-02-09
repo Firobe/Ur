@@ -111,13 +111,20 @@ let transition_trigger state new_state =
     { kind= Waiting (anim.id, state.kind, new_state.kind)
     ; animations
     ; speed
-    ; themes= state.themes } in
+    ; themes= new_state.themes } in
+  let add_blank kind =
+    let animations = anim_create 0.5 (Sound kind) :: new_state.animations in
+    {new_state with animations} in
   match (state.kind, new_state.kind) with
   (* Title screen *)
   | Title_screen, Menu _ -> wait_anim (anim_create title_time Title)
   (* Menu move *)
   | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
       wait_anim (anim_create menu_move_time (Menu_move (h1, h2)))
+  (* Menu option changed *)
+  | Menu m1, Menu m2 when m1 <> m2 -> add_blank `menu_option
+  (* Menu validated *)
+  | Menu _, Playing _ -> add_blank `select
   (* Victory *)
   | Playing _, Victory_screen _ -> wait_anim (anim_create victory_time Victory)
   (* Pawn move *)

@@ -7,6 +7,7 @@ type kind =
   | Victory
   | Score_up of Game.playerNo
   | Choice
+  | Sound of Themes.sound_type
 
 type t = {id: int; length: float; start: float; kind: kind}
 

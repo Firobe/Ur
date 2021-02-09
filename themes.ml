@@ -26,7 +26,19 @@ type animated_throw =
 [@@deriving sexp]
 
 type dice_style = Old | Animated of animated_throw [@@deriving sexp]
-type sound_type = [`menu_choice] [@@deriving sexp]
+
+type sound_type =
+  [ `title
+  | `menu_choice
+  | `menu_option
+  | `select
+  | `spawn
+  | `eaten
+  | `moving
+  | `cup_full
+  | `cup_thrown
+  | `no_move ]
+[@@deriving sexp]
 
 type theme =
   { background: color_or_texture

@@ -70,10 +70,13 @@ let color themes =
   | `Random -> (Random.int 256, Random.int 256, Random.int 256)
 
 let draw_title themes animations context =
-  let* text =
+  let* context =
     match get_animation Title animations with
-    | None -> clear_screen context ; Ok context.text
+    | None -> clear_screen context ; Ok context
     | Some t ->
+        let* sounds =
+          Gl_audio.play_theme context.sounds ~anim_unique:t `title
+        in
         let prog = Animation.progress t in
         clear_screen context ;
         let y = (6. *. prog) -. 1. in
@@ -82,10 +85,17 @@ let draw_title themes animations context =
             (color themes `Black)
             ~x:3.5 ~y ~scale:3. "Royal Game of Ur"
         in
-        Ok text
+        Ok {context with text; sounds}
   in
   Sdl.gl_swap_window context.win ;
-  Ok {context with text}
+  Result.ok context
+
+let play_animation_sound animations context kind =
+  match get_animation (Sound kind) animations with
+  | None -> Ok context
+  | Some a ->
+      let* sounds = Gl_audio.play_theme ~anim_unique:a context.sounds kind in
+      Result.ok {context with sounds}
 
 let draw_menu m themes animations context =
   let open Menu in
@@ -118,6 +128,7 @@ let draw_menu m themes animations context =
           , {context with sounds} )
     | _ -> Result.ok (Choice.eq cc, (fun _ -> false), 1.0, context)
   in
+  let* context = play_animation_sound animations context `menu_option in
   clear_screen context ;
   let* text =
     List.fold_left
@@ -219,6 +230,8 @@ let draw_playing game themes animations context =
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
     P1 ;
   Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
+  (* Play select sound if coming from menu *)
+  let* context = play_animation_sound animations context `select in
   let _player p = if p = P1 then game.logic.p1 else game.logic.p2 in
   (* Retrieve available choices and animation progress *)
   let choices, choice_prog, context =
