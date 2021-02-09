@@ -285,18 +285,41 @@ let draw_playing game themes animations context =
     List.filter (fun p -> not @@ List.exists (( = ) p) normal_pawns) choices
     |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
   (* Animate moving pawn *)
-  List.iter
-    (fun a ->
-      let prog = Animation.progress a in
-      let d orig dest p =
-        Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
-      match a.kind with
-      | Pawn_moving (p, Move position) | Pawn_moving (p, Take {position; _}) ->
-          d p {p with position} prog
-      | Pawn_moving (p, Add) -> d {p with position= Reserve} p prog
-      | Pawn_moving (p, Finish) -> d p {p with position= Outro 2} prog
-      | _ -> () )
-    animations ;
+  let* context =
+    List.fold_left
+      (fun acc a ->
+        let* context = acc in
+        let prog = Animation.progress a in
+        let d orig dest p =
+          Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
+        match a.kind with
+        | Pawn_moving (p, Move position) ->
+            d p {p with position} prog ;
+            let* sounds =
+              Gl_audio.play_theme ~anim_unique:a context.sounds `moving
+            in
+            Result.ok {context with sounds}
+        | Pawn_moving (p, Take {position; _}) ->
+            d p {p with position} prog ;
+            let* sounds =
+              Gl_audio.play_theme ~anim_unique:a context.sounds `eaten
+            in
+            Result.ok {context with sounds}
+        | Pawn_moving (p, Add) ->
+            d {p with position= Reserve} p prog ;
+            let* sounds =
+              Gl_audio.play_theme ~anim_unique:a context.sounds `spawn
+            in
+            Result.ok {context with sounds}
+        | Pawn_moving (p, Finish) ->
+            d p {p with position= Outro 2} prog ;
+            let* sounds =
+              Gl_audio.play_theme ~anim_unique:a context.sounds `moving
+            in
+            Result.ok {context with sounds}
+        | _ -> Result.ok context )
+      (Result.ok context) animations
+  in
   (* Draw score (with potential animation *)
   let s1 = Printf.sprintf "%d" game.logic.p1.points in
   let s2 = Printf.sprintf "%d" game.logic.p2.points in
@@ -321,14 +344,17 @@ let draw_playing game themes animations context =
         (function {kind= Cannot_choose _; _} -> true | _ -> false)
         animations
     with
-    | Some {kind= Cannot_choose dices; _} ->
+    | Some ({kind= Cannot_choose dices; _} as a) ->
         let context = draw_dices dices None context in
         let* text =
           Gl_text.write text
             (color themes `Alert)
             ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
         in
-        Ok (text, context)
+        let* sounds =
+          Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
+        in
+        Ok (text, {context with sounds})
     | _ -> Ok (text, context)
   in
   Sdl.gl_swap_window context.win ;
