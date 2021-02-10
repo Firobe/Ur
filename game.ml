@@ -203,13 +203,15 @@ module Gameplay = struct
 
   let next_player player = if player = P1 then P2 else P1
 
-  let begin_turn player logic =
+  let begin_turn player logic inputs =
     match Logic.check_end logic with
     | Some p -> (logic, Victory p)
     | None ->
-        let n, dices = Logic.throw_dices () in
-        let am = Logic.all_moves logic player n in
-        (logic, Choose (player, dices, am))
+        if List.exists (( = ) Input.Throw_dices) inputs then
+          let n, dices = Logic.throw_dices () in
+          let am = Logic.all_moves logic player n in
+          (logic, Choose (player, dices, am))
+        else (logic, Begin_turn player)
 
   let wait_input inputs player dices logic am =
     let open Logic in
@@ -250,7 +252,7 @@ type t = {gameplay: Gameplay.state; logic: Logic.state}
 let next game inputs =
   let logic, gameplay =
     match game.gameplay with
-    | Begin_turn p -> Gameplay.begin_turn p game.logic
+    | Begin_turn p -> Gameplay.begin_turn p game.logic inputs
     | Choose (p, dices, am) -> Gameplay.wait_input inputs p dices game.logic am
     | Play (p, pm) -> Gameplay.play p game.logic pm
     | Replay (p, pos) -> Gameplay.replay p game.logic pos

@@ -215,63 +215,50 @@ let draw_dices (d1, d2, d3, d4) animation context =
       let x, y = interpolate prog (-1.5, -1.) (x, y) in
       Dice.draw context.objects.dice ~n ~dice_n ~x ~y )
     kinds_and_coords [d1; d2; d3; d4] ;
-  (* Draw cup *)
-  match animation with
-  | None ->
-      Cup.draw `Empty context.objects.cup ;
-      Ok context
-  | Some a ->
-      let prog = Animation.progress a in
-      if prog < 0.1 then (
-        Cup.draw `Full context.objects.cup ;
-        Ok context )
-      else if prog < 0.9 then (
-        let* sounds =
-          Gl_audio.play_theme ~anim_unique:a context.sounds `cup_thrown
-        in
-        Cup.draw `Fallen context.objects.cup ;
-        Result.ok {context with sounds} )
-      else (
-        Cup.draw `Empty context.objects.cup ;
-        Ok context )
+  context
 
-let draw_playing game themes animations context =
+let draw_score game animations context themes =
+  let open Game in
+  let s1 = Printf.sprintf "%d" game.logic.p1.points in
+  let s2 = Printf.sprintf "%d" game.logic.p2.points in
+  let ss1 =
+    match get_animation (Score_up P1) animations with
+    | None -> 1.
+    | Some a -> 3. -. (2. *. Animation.progress a) in
+  let ss2 =
+    match get_animation (Score_up P2) animations with
+    | None -> 1.
+    | Some a -> 3. -. (2. *. Animation.progress a) in
+  let* text =
+    Gl_text.write context.text (color themes `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
+  in
+  let* text =
+    Gl_text.write text (color themes `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2
+  in
+  Result.ok {context with text}
+
+let maybe_draw_cannot_move animations context themes =
+  match
+    List.find_opt
+      (function Animation.{kind= Cannot_choose _; _} -> true | _ -> false)
+      animations
+  with
+  | Some ({kind= Cannot_choose dices; _} as a) ->
+      let context = draw_dices dices None context in
+      let* text =
+        Gl_text.write context.text
+          (color themes `Alert)
+          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
+      in
+      let* sounds =
+        Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
+      in
+      Result.ok {context with text; sounds}
+  | _ -> Result.ok context
+
+let draw_pawns context animations game (choices, choice_prog) =
   let open Game in
   let open Animation in
-  clear_screen context ;
-  Board.draw context.objects.board ;
-  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
-    P1 ;
-  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
-  (* Play select sound if coming from menu *)
-  let* context = play_animation_sound animations context `select in
-  let _player p = if p = P1 then game.logic.p1 else game.logic.p2 in
-  (* Retrieve available choices and animation progress *)
-  let* choices, choice_prog, context =
-    match game.gameplay with
-    | Choose (_p, dices, choices) (*  when (player p).p_type = Human_player *)
-      ->
-        let choice_a = get_animation Choice animations in
-        let* context = draw_dices dices choice_a context in
-        let choice_prog =
-          match choice_a with
-          | None -> 1.
-          | Some a ->
-              let prog = Animation.progress a in
-              if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
-        let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
-        Result.ok (choice_pawns, choice_prog, context)
-    | _ ->
-        let context =
-          if
-            List.exists
-              (function {kind= Cannot_choose _; _} -> true | _ -> false)
-              animations
-          then context
-          else {context with dice_data= None} in
-        Cup.draw `Full context.objects.cup ;
-        Result.ok ([], 1., context)
-  in
   (* Draw normal (non-hollow) non-moving pawns *)
   let normal_pawns =
     List.filter
@@ -297,82 +284,141 @@ let draw_playing game themes animations context =
   (* Draw hollow pawns *)
   if choice_prog <> -1. then
     List.filter (fun p -> not @@ List.exists (( = ) p) normal_pawns) choices
-    |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog)) ;
+    |> List.iter (Pawn.draw context.objects.pawn ~choice:(`Empty, choice_prog))
+
+let retrieve_choice_state game animations context =
+  let open Game in
+  match game.gameplay with
+  | Choose (_, _, choices) ->
+      let choice_a = get_animation Choice animations in
+      let choice_prog =
+        match choice_a with
+        | None -> 1.
+        | Some a ->
+            let prog = Animation.progress a in
+            if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
+      let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
+      Result.ok (choice_pawns, choice_prog, context)
+  | _ -> Result.ok ([], 1., context)
+
+let draw_moving_pawn animations context =
+  List.fold_left
+    (fun acc a ->
+      let* context = acc in
+      let prog = Animation.progress a in
+      let d orig dest p =
+        Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
+      match a.kind with
+      | Pawn_moving (p, Move position) ->
+          d p {p with position} prog ;
+          let* sounds =
+            Gl_audio.play_theme ~anim_unique:a context.sounds `moving
+          in
+          Result.ok {context with sounds}
+      | Pawn_moving (p, Take {position; _}) ->
+          d p {p with position} prog ;
+          let* sounds =
+            Gl_audio.play_theme ~anim_unique:a context.sounds `eaten
+          in
+          Result.ok {context with sounds}
+      | Pawn_moving (p, Add) ->
+          d {p with position= Reserve} p prog ;
+          let* sounds =
+            Gl_audio.play_theme ~anim_unique:a context.sounds `spawn
+          in
+          Result.ok {context with sounds}
+      | Pawn_moving (p, Finish) ->
+          d p {p with position= Outro 2} prog ;
+          let* sounds =
+            Gl_audio.play_theme ~anim_unique:a context.sounds `moving
+          in
+          Result.ok {context with sounds}
+      | _ -> Result.ok context )
+    (Result.ok context) animations
+
+let should_reset_dice_data game animations =
+  let open Game in
+  match game.gameplay with
+  | Choose _ -> false
+  | _ ->
+      (* Retain dice data when showing no move *)
+      not
+      @@ List.exists
+           (function Animation.{kind= Cannot_choose _; _} -> true | _ -> false)
+           animations
+
+let draw_board context game animations =
+  let open Game in
+  Board.draw context.objects.board ;
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
+    P1 ;
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
+  (* Retrieve available choices and animation progress *)
+  let* choices, choice_prog, context =
+    retrieve_choice_state game animations context
+  in
+  (* Draw static pawns *)
+  draw_pawns context animations game (choices, choice_prog) ;
   (* Animate moving pawn *)
-  let* context =
-    List.fold_left
-      (fun acc a ->
-        let* context = acc in
+  draw_moving_pawn animations context
+
+let maybe_draw_dices game animations context =
+  let open Game in
+  match game.gameplay with
+  | Choose (_, dices, _) ->
+      let choice_a = get_animation Choice animations in
+      draw_dices dices choice_a context
+  | _ -> context
+
+let draw_cup game animations context =
+  let open Game in
+  match game.gameplay with
+  | Choose _ -> (
+    match get_animation Choice animations with
+    | None ->
+        Cup.draw `Empty context.objects.cup ;
+        Ok context
+    | Some a ->
         let prog = Animation.progress a in
-        let d orig dest p =
-          Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
-        match a.kind with
-        | Pawn_moving (p, Move position) ->
-            d p {p with position} prog ;
-            let* sounds =
-              Gl_audio.play_theme ~anim_unique:a context.sounds `moving
-            in
-            Result.ok {context with sounds}
-        | Pawn_moving (p, Take {position; _}) ->
-            d p {p with position} prog ;
-            let* sounds =
-              Gl_audio.play_theme ~anim_unique:a context.sounds `eaten
-            in
-            Result.ok {context with sounds}
-        | Pawn_moving (p, Add) ->
-            d {p with position= Reserve} p prog ;
-            let* sounds =
-              Gl_audio.play_theme ~anim_unique:a context.sounds `spawn
-            in
-            Result.ok {context with sounds}
-        | Pawn_moving (p, Finish) ->
-            d p {p with position= Outro 2} prog ;
-            let* sounds =
-              Gl_audio.play_theme ~anim_unique:a context.sounds `moving
-            in
-            Result.ok {context with sounds}
-        | _ -> Result.ok context )
-      (Result.ok context) animations
-  in
+        if prog < 0.1 then (
+          Cup.draw `Full context.objects.cup ;
+          Ok context )
+        else if prog < 0.9 then (
+          let* sounds =
+            Gl_audio.play_theme ~anim_unique:a context.sounds `cup_thrown
+          in
+          Cup.draw `Fallen context.objects.cup ;
+          Result.ok {context with sounds} )
+        else (
+          Cup.draw `Empty context.objects.cup ;
+          Ok context ) )
+  | Begin_turn _ ->
+      Cup.draw `Full context.objects.cup ;
+      play_animation_sound animations context `cup_full
+  | _ ->
+      Cup.draw `Empty context.objects.cup ;
+      Ok context
+
+let draw_playing game themes animations context =
+  clear_screen context ;
+  (* Test if dice data should be reset *)
+  let context =
+    if should_reset_dice_data game animations then {context with dice_data= None}
+    else context in
+  (* Play select sound if coming from menu *)
+  let* context = play_animation_sound animations context `select in
+  (* Draw whole board *)
+  let* context = draw_board context game animations in
+  (* Draw dices when applicable *)
+  let context = maybe_draw_dices game animations context in
+  (* Draw up with correct state *)
+  let* context = draw_cup game animations context in
   (* Draw score (with potential animation *)
-  let s1 = Printf.sprintf "%d" game.logic.p1.points in
-  let s2 = Printf.sprintf "%d" game.logic.p2.points in
-  let ss1 =
-    match get_animation (Score_up P1) animations with
-    | None -> 1.
-    | Some a -> 3. -. (2. *. Animation.progress a) in
-  let ss2 =
-    match get_animation (Score_up P2) animations with
-    | None -> 1.
-    | Some a -> 3. -. (2. *. Animation.progress a) in
-  let* text =
-    Gl_text.write context.text (color themes `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
-  in
-  let* text =
-    Gl_text.write text (color themes `Blue) ~x:5. ~y:2.5 ~scale:ss2 s2
-  in
+  let* context = draw_score game animations context themes in
   (* Draw cannot move if applicable *)
-  let* text, context =
-    match
-      List.find_opt
-        (function {kind= Cannot_choose _; _} -> true | _ -> false)
-        animations
-    with
-    | Some ({kind= Cannot_choose dices; _} as a) ->
-        let* context = draw_dices dices None context in
-        let* text =
-          Gl_text.write text
-            (color themes `Alert)
-            ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
-        in
-        let* sounds =
-          Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
-        in
-        Ok (text, {context with sounds})
-    | _ -> Ok (text, context)
-  in
+  let* context = maybe_draw_cannot_move animations context themes in
   Sdl.gl_swap_window context.win ;
-  Ok {context with text}
+  Result.ok context
 
 module Timer = struct
   let time = Unix.gettimeofday
@@ -415,14 +461,17 @@ let draw_state state context =
         draw_menu m state.themes state.animations context
     (* Computation only frames *)
     | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
-        Ok context
+        Result.ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
         draw_playing g state.themes state.animations context
     (* Victory screen *)
     | Waiting (_, _, Victory_screen p) | Victory_screen p ->
         draw_victory p state.themes state.animations context
-    | _ -> Ok context in
+    (* Non-existent waiting combinations *)
+    | Waiting (_, _, _) -> Result.ok context
+    (* Game is going to shut down *)
+    | End -> Result.ok context in
   f state.kind
 
 let quit context =
@@ -440,12 +489,20 @@ let process_events context =
     | `Mouse_button_down
       when Sdl.Event.(get e mouse_button_button = Sdl.Button.left) ->
         let open Sdl.Event in
-        let x = (get e mouse_button_x / square_size) - board_offset_x in
-        let y = (get e mouse_button_y / square_size) - board_offset_y in
-        let pos = Input.coord_to_pos x y in
-        context.buffer_input (Input.Pawn pos)
+        let rx = get e mouse_button_x in
+        let ry = get e mouse_button_y in
+        let x, y =
+          Input.coord_of_raw square_size window_height board_offset_x
+            board_offset_y rx ry in
+        if Input.coord_in_board x y then
+          let pos = Input.coord_to_pos x y in
+          context.buffer_input (Input.Pawn pos)
+        else if Input.coord_in_cup x y then
+          context.buffer_input Input.Throw_dices
     | `Quit -> quit context
     | `Key_down when key_scancode e = `Escape -> quit context
+    | `Key_down when key_scancode e = `Space ->
+        context.buffer_input Input.Throw_dices
     | `Key_down when key_scancode e = `Up ->
         context.buffer_input Input.Previous_menu
     | `Key_down when key_scancode e = `Down ->

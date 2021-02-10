@@ -105,57 +105,61 @@ let playing_reducer (next : next_fun) game inputs =
 let transition_trigger state new_state =
   let speed = state.speed in
   let anim_create = Animation.create ~speed in
-  let open Animation in
   let wait_anim anim =
     let animations = anim :: new_state.animations in
     { kind= Waiting (anim.id, state.kind, new_state.kind)
     ; animations
     ; speed
     ; themes= new_state.themes } in
-  let add_blank kind =
-    let animations = anim_create 0.5 (Sound kind) :: new_state.animations in
-    {new_state with animations} in
-  match (state.kind, new_state.kind) with
-  (* Title screen *)
-  | Title_screen, Menu _ -> wait_anim (anim_create title_time Title)
-  (* Menu move *)
-  | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
-      wait_anim (anim_create menu_move_time (Menu_move (h1, h2)))
-  (* Menu option changed *)
-  | Menu m1, Menu m2 when m1 <> m2 -> add_blank `menu_option
-  (* Menu validated *)
-  | Menu _, Playing _ -> add_blank `select
-  (* Victory *)
-  | Playing _, Victory_screen _ -> wait_anim (anim_create victory_time Victory)
-  (* Pawn move *)
-  | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _} ->
-      wait_anim (anim_create move_time (Pawn_moving choice))
-  (* Score up *)
-  | ( Playing {gameplay= Play (P1, _); logic= l1}
-    , Playing {gameplay= Begin_turn _; logic= l2} )
-    when l1.p1.points < l2.p1.points ->
-      wait_anim (anim_create score_up_time (Score_up P1))
-  | ( Playing {gameplay= Play (P2, _); logic= l1}
-    , Playing {gameplay= Begin_turn _; logic= l2} )
-    when l1.p2.points < l2.p2.points ->
-      wait_anim (anim_create score_up_time (Score_up P2))
-  (* No move *)
-  | Playing {gameplay= Choose (_, d, _); _}, Playing {gameplay= Begin_turn _; _}
-    ->
-      wait_anim Animation.(anim_create cannot_choose_time (Cannot_choose d))
-  (* Yellow choice *)
-  | ( Playing {gameplay= Begin_turn _; _}
-    , Playing ({gameplay= Choose (_p, _, _); _} as _g) )
-   |( Playing {gameplay= Replay _; _}
-    , Playing ({gameplay= Choose (_p, _, _); _} as _g) ) ->
-      (*
-      let player = if p = P1 then g.logic.p1 else g.logic.p2 in
-      match player.p_type with
-      | Human_player -> wait_anim (anim_create choice_time Choice)
-      | _ -> new_state )
-          *)
-      wait_anim (anim_create choice_time Choice)
-  | _ -> new_state
+  let rec f state new_state done_list =
+    let check_sound kind = not @@ List.exists (( = ) kind) done_list in
+    let add_sound kind =
+      let animations = anim_create 0.5 (Sound kind) :: new_state.animations in
+      f state {new_state with animations} (kind :: done_list) in
+    match (state.kind, new_state.kind) with
+    (* Title screen *)
+    | Title_screen, Menu _ -> wait_anim (anim_create title_time Title)
+    (* Menu move *)
+    | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
+        wait_anim (anim_create menu_move_time (Menu_move (h1, h2)))
+    (* Menu option changed *)
+    | Menu m1, Menu m2 when m1 <> m2 && check_sound `menu_option ->
+        add_sound `menu_option
+    (* Menu validated *)
+    | Menu _, Playing _ when check_sound `select -> add_sound `select
+    (* Turn begins *)
+    | ( (Menu _ | Playing {gameplay= Play _ | Replay _; _})
+      , Playing {gameplay= Begin_turn _; _} )
+      when check_sound `cup_full ->
+        add_sound `cup_full
+    (* Victory *)
+    | Playing _, Victory_screen _ ->
+        wait_anim (anim_create victory_time Victory)
+    (* Pawn move *)
+    | Playing {gameplay= Choose _; _}, Playing {gameplay= Play (_, choice); _}
+      ->
+        wait_anim (anim_create move_time (Pawn_moving choice))
+    (* Score up *)
+    | ( Playing {gameplay= Play (P1, _); logic= l1}
+      , Playing {gameplay= Begin_turn _; logic= l2} )
+      when l1.p1.points < l2.p1.points ->
+        wait_anim (anim_create score_up_time (Score_up P1))
+    | ( Playing {gameplay= Play (P2, _); logic= l1}
+      , Playing {gameplay= Begin_turn _; logic= l2} )
+      when l1.p2.points < l2.p2.points ->
+        wait_anim (anim_create score_up_time (Score_up P2))
+    (* No move *)
+    | ( Playing {gameplay= Choose (_, d, _); _}
+      , Playing {gameplay= Begin_turn _; _} ) ->
+        wait_anim Animation.(anim_create cannot_choose_time (Cannot_choose d))
+    (* Yellow choice *)
+    | ( Playing {gameplay= Begin_turn _; _}
+      , Playing ({gameplay= Choose (_p, _, _); _} as _g) )
+     |( Playing {gameplay= Replay _; _}
+      , Playing ({gameplay= Choose (_p, _, _); _} as _g) ) ->
+        wait_anim (anim_create choice_time Choice)
+    | _ -> new_state in
+  f state new_state []
 
 (* Waiting *)
 let waiting_reducer state aid _old next =
