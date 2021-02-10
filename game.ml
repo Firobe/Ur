@@ -203,11 +203,19 @@ module Gameplay = struct
 
   let next_player player = if player = P1 then P2 else P1
 
+  let is_human player logic =
+    let open Logic in
+    let p = if player = P1 then logic.p1 else logic.p2 in
+    match p.p_type with Human_player -> true | _ -> false
+
   let begin_turn player logic inputs =
     match Logic.check_end logic with
     | Some p -> (logic, Victory p)
     | None ->
-        if List.exists (( = ) Input.Throw_dices) inputs then
+        if
+          (not @@ is_human player logic)
+          || List.exists (( = ) Input.Throw_dices) inputs
+        then
           let n, dices = Logic.throw_dices () in
           let am = Logic.all_moves logic player n in
           (logic, Choose (player, dices, am))
