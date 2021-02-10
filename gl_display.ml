@@ -336,16 +336,18 @@ let draw_moving_pawn animations context =
       | _ -> Result.ok context )
     (Result.ok context) animations
 
+let currently_cannot_move animations =
+  List.exists
+    (function Animation.{kind= Cannot_choose _; _} -> true | _ -> false)
+    animations
+
 let should_reset_dice_data game animations =
   let open Game in
   match game.gameplay with
   | Choose _ -> false
   | _ ->
       (* Retain dice data when showing no move *)
-      not
-      @@ List.exists
-           (function Animation.{kind= Cannot_choose _; _} -> true | _ -> false)
-           animations
+      not @@ currently_cannot_move animations
 
 let draw_board context game animations =
   let open Game in
@@ -392,7 +394,7 @@ let draw_cup game animations context =
         else (
           Cup.draw `Empty context.objects.cup ;
           Ok context ) )
-  | Begin_turn _ ->
+  | Begin_turn _ when not @@ currently_cannot_move animations ->
       Cup.draw `Full context.objects.cup ;
       play_animation_sound animations context `cup_full
   | _ ->
