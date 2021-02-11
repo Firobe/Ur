@@ -248,7 +248,7 @@ let maybe_draw_cannot_move animations context themes =
       let* text =
         Gl_text.write context.text
           (color themes `Alert)
-          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move !"
+          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move!"
       in
       let* sounds =
         Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
@@ -401,6 +401,22 @@ let draw_cup game animations context =
       Cup.draw `Empty context.objects.cup ;
       Ok context
 
+let draw_current_player game animations context themes =
+  let open Game in
+  let write_in_corner msg =
+    let* text =
+      Gl_text.write context.text
+        (color themes `Alert)
+        ~scale:0.8 ~x:(-1.0) ~y:3.5 msg
+    in
+    Result.ok {context with text} in
+  match game.gameplay with
+  | Begin_turn p when not @@ currently_cannot_move animations ->
+      write_in_corner (Format.asprintf "Go, %a!" Game.pp_player p)
+  | Replay (p, _) when not @@ currently_cannot_move animations ->
+      write_in_corner (Format.asprintf "Again, %a!" Game.pp_player p)
+  | _ -> Result.ok context
+
 let draw_playing game themes animations context =
   clear_screen context ;
   (* Test if dice data should be reset *)
@@ -415,6 +431,8 @@ let draw_playing game themes animations context =
   let context = maybe_draw_dices game animations context in
   (* Draw up with correct state *)
   let* context = draw_cup game animations context in
+  (* Announce who is playing *)
+  let* context = draw_current_player game animations context themes in
   (* Draw score (with potential animation *)
   let* context = draw_score game animations context themes in
   (* Draw cannot move if applicable *)
