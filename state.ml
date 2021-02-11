@@ -63,8 +63,7 @@ let title_reducer (next : next_fun) themes =
 
 (* Menu *)
 let menu_reducer (next : next_fun) menu themes inputs =
-  if has_quit inputs then
-    next End
+  if has_quit inputs then next End
   else
     let speed = ref 1. in
     let ns =
@@ -74,25 +73,24 @@ let menu_reducer (next : next_fun) menu themes inputs =
               let cc = Menu.get_current_choice menu in
               function
               | Input.Validate when cc.final ->
-                if cc.header = "Play !" then
-                  let p1 =
-                    Menu.get_choice_option menu "Red player"
-                    |> Option.get |> Game.decode_ptype in
-                  let p2 =
-                    Menu.get_choice_option menu "Blue player"
-                    |> Option.get |> Game.decode_ptype in
-                  let points =
-                    Menu.get_choice_option menu "Pawns"
-                    |> Option.get |> int_of_string in
-                  speed :=
-                    float
-                      ( Menu.get_choice_option menu "Game speed"
+                  if cc.header = "Play !" then (
+                    let p1 =
+                      Menu.get_choice_option menu "Red player"
+                      |> Option.get |> Game.decode_ptype in
+                    let p2 =
+                      Menu.get_choice_option menu "Blue player"
+                      |> Option.get |> Game.decode_ptype in
+                    let points =
+                      Menu.get_choice_option menu "Pawns"
+                      |> Option.get |> int_of_string in
+                    speed :=
+                      float
+                        ( Menu.get_choice_option menu "Game speed"
                         |> Option.get |> int_of_string )
-                    /. 100. ;
-                  Playing (Game.default_game p1 p2 points)
-                else if cc.header = "How to play" then
-                  Read_rules (0, menu)
-                else failwith "Invalid button"
+                      /. 100. ;
+                    Playing (Game.default_game p1 p2 points) )
+                  else if cc.header = "How to play" then Read_rules (0, menu)
+                  else failwith "Invalid button"
               | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
               | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)
               | Input.Previous_option -> Menu (Menu.move_option menu (-1))
@@ -105,27 +103,27 @@ let menu_reducer (next : next_fun) menu themes inputs =
     next ~speed:!speed ~themes ns
 
 let read_rules_reducer (next : next_fun) page next_menu inputs =
-  if has_quit inputs then
-    next (Menu next_menu)
+  if has_quit inputs then next (Menu next_menu)
   else
-    let n' = List.fold_left (fun n -> function
-        | Input.Previous_option -> n - 1
-        | Input.Next_option -> n + 1
-        | _ -> n
-      ) page inputs in
+    let n' =
+      List.fold_left
+        (fun n -> function
+          | Input.Previous_option -> n - 1
+          | Input.Next_option -> n + 1
+          | _ -> n )
+        page inputs in
     let next_page = Menu.modulo n' (Rules.nb_pages ()) in
     next (Read_rules (next_page, next_menu))
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
-  if has_quit inputs then
-    next End
+  if has_quit inputs then next End
   else
     match game.gameplay with
     | Game.Gameplay.Victory p -> next (Victory_screen p)
     | _ ->
-      let game' = Game.next game inputs in
-      next (Playing game')
+        let game' = Game.next game inputs in
+        next (Playing game')
 
 let transition_trigger state new_state =
   let speed = state.speed in
@@ -151,10 +149,12 @@ let transition_trigger state new_state =
     | Menu m1, Menu m2 when m1 <> m2 && check_sound `menu_option ->
         add_sound `menu_option
     (* Game rules page change *)
-    | Read_rules (m1, _), Read_rules (m2, _) when m1 <> m2 && check_sound `menu_option ->
+    | Read_rules (m1, _), Read_rules (m2, _)
+      when m1 <> m2 && check_sound `menu_option ->
         add_sound `menu_option
     (* Menu validated *)
-    | Menu _, (Playing _| Read_rules _) when check_sound `select -> add_sound `select
+    | Menu _, (Playing _ | Read_rules _) when check_sound `select ->
+        add_sound `select
     (* Turn begins *)
     | ( (Menu _ | Playing {gameplay= Play _ | Replay _; _})
       , Playing {gameplay= Begin_turn _; _} )

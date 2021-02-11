@@ -73,7 +73,8 @@ let load_themes () =
       let themes =
         Sys.readdir dir |> Array.to_list
         |> List.filter (fun s -> Sys.is_directory (dest s))
-        |> List.map (load_theme dir) in
+        |> List.map (load_theme dir)
+        |> List.sort (fun (a, _) (b, _) -> compare a b) in
       {themes; selected= "naya"}
     else failwith "Invalid themes directory"
   with Sys_error s -> failwith ("Error while loading themes: " ^ s)
