@@ -417,6 +417,26 @@ let draw_current_player game animations context themes =
       write_in_corner (Format.asprintf "Again, %a!" Game.pp_player p)
   | _ -> Result.ok context
 
+let draw_rules page themes animations context =
+  clear_screen context ;
+  (* Play select sound if coming from menu *)
+  let* context = play_animation_sound animations context `select in
+  let* context = play_animation_sound animations context `menu_option in
+  let title, sentences = Rules.get_page page in
+  let text = context.text in
+  let header = Printf.sprintf "< %s >" title in
+  let* text = Gl_text.write text (color themes `Alert) ~x:3.6 ~y:3.5 header in
+  let sentences = List.mapi (fun i x -> (i, x)) sentences in
+  let delta = 4. /. (float @@ List.length sentences) in
+  let* text = List.fold_left (fun acc (i, line) ->
+      let y = -0.5 +. (float i) *. delta in
+      let* text = acc in
+      Gl_text.write text (color themes `Black) ~scale:delta ~x:3.6 ~y line
+    ) (Result.ok text) sentences in
+  Sdl.gl_swap_window context.win ;
+  Result.ok {context with text}
+
+
 let draw_playing game themes animations context =
   clear_screen context ;
   (* Test if dice data should be reset *)
@@ -479,6 +499,8 @@ let draw_state state context =
     (* Menu *)
     | Waiting (_, Menu m, _) | Menu m ->
         draw_menu m state.themes state.animations context
+    | Read_rules (page, _) ->
+      draw_rules page state.themes state.animations context
     (* Computation only frames *)
     | Playing {gameplay= Play _; _} -> Result.ok context
     (* Actual game *)

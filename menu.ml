@@ -55,7 +55,8 @@ let move_option t delta =
 
 let default_menu themes =
   { choices=
-      [ { header= "Red player"
+      [ {header= "How to play"; final= true; options= None}
+      ; { header= "Red player"
         ; final= false
         ; options= Some (0, ["Human"; "AI (Random)"; "AI (Smart)"]) }
       ; { header= "Blue player"

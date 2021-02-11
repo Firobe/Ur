@@ -13,6 +13,7 @@ let debug = false
 type kind =
   | Title_screen
   | Menu of Menu.t
+  | Read_rules of int * Menu.t
   | Playing of Game.t
   | Waiting of int * kind * kind
   | Victory_screen of playerNo
@@ -37,16 +38,18 @@ let pp fmt t =
     (fun fmt -> function
       | Title_screen -> fp fmt "title"
       | Menu _ -> fp fmt "menu"
+      | Read_rules (p, _) -> fp fmt "read_rules (page %d)" p
       | Victory_screen _ -> fp fmt "victory"
       | Playing g -> fp fmt "playing (%a)" Game.Gameplay.pp_state g.gameplay
       | Waiting _ -> fp fmt "waiting"
       | End -> fp fmt "end" )
     t.kind
 
+let has_error inputs =
+  List.exists (function Input.Error _ -> true | _ -> false) inputs
+
 let has_quit inputs =
-  List.exists
-    (function Input.Quit | Input.Error _ -> true | _ -> false)
-    inputs
+  List.exists (function Input.Quit -> true | _ -> false) inputs
 
 type next_fun =
   ?animations:Animation.t list -> ?speed:float -> ?themes:Themes.t -> kind -> t
@@ -60,45 +63,67 @@ let title_reducer (next : next_fun) themes =
 
 (* Menu *)
 let menu_reducer (next : next_fun) menu themes inputs =
-  let speed = ref 1. in
-  let ns =
-    List.fold_left
-      (function
-        | Menu menu -> (
-            let cc = Menu.get_current_choice menu in
-            function
-            | Input.Validate when cc.final ->
-                let p1 =
-                  Menu.get_choice_option menu "Red player"
-                  |> Option.get |> Game.decode_ptype in
-                let p2 =
-                  Menu.get_choice_option menu "Blue player"
-                  |> Option.get |> Game.decode_ptype in
-                let points =
-                  Menu.get_choice_option menu "Pawns"
-                  |> Option.get |> int_of_string in
-                speed :=
-                  float
-                    ( Menu.get_choice_option menu "Game speed"
-                    |> Option.get |> int_of_string )
-                  /. 100. ;
-                Playing (Game.default_game p1 p2 points)
-            | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
-            | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)
-            | Input.Previous_option -> Menu (Menu.move_option menu (-1))
-            | Input.Next_option -> Menu (Menu.move_option menu 1)
-            | _ -> Menu menu )
-        | stop -> fun _ -> stop )
-      (Menu menu) inputs in
-  let theme = Menu.get_choice_option menu "Theme" |> Option.get in
-  let themes = Themes.{themes with selected= theme} in
-  next ~speed:!speed ~themes ns
+  if has_quit inputs then
+    next End
+  else
+    let speed = ref 1. in
+    let ns =
+      List.fold_left
+        (function
+          | Menu menu -> (
+              let cc = Menu.get_current_choice menu in
+              function
+              | Input.Validate when cc.final ->
+                if cc.header = "Play !" then
+                  let p1 =
+                    Menu.get_choice_option menu "Red player"
+                    |> Option.get |> Game.decode_ptype in
+                  let p2 =
+                    Menu.get_choice_option menu "Blue player"
+                    |> Option.get |> Game.decode_ptype in
+                  let points =
+                    Menu.get_choice_option menu "Pawns"
+                    |> Option.get |> int_of_string in
+                  speed :=
+                    float
+                      ( Menu.get_choice_option menu "Game speed"
+                        |> Option.get |> int_of_string )
+                    /. 100. ;
+                  Playing (Game.default_game p1 p2 points)
+                else if cc.header = "How to play" then
+                  Read_rules (0, menu)
+                else failwith "Invalid button"
+              | Input.Previous_menu -> Menu (Menu.move_highlighted menu (-1))
+              | Input.Next_menu -> Menu (Menu.move_highlighted menu 1)
+              | Input.Previous_option -> Menu (Menu.move_option menu (-1))
+              | Input.Next_option -> Menu (Menu.move_option menu 1)
+              | _ -> Menu menu )
+          | stop -> fun _ -> stop )
+        (Menu menu) inputs in
+    let theme = Menu.get_choice_option menu "Theme" |> Option.get in
+    let themes = Themes.{themes with selected= theme} in
+    next ~speed:!speed ~themes ns
+
+let read_rules_reducer (next : next_fun) page next_menu inputs =
+  if has_quit inputs then
+    next (Menu next_menu)
+  else
+    let n' = List.fold_left (fun n -> function
+        | Input.Previous_option -> n - 1
+        | Input.Next_option -> n + 1
+        | _ -> n
+      ) page inputs in
+    let next_page = Menu.modulo n' (Rules.nb_pages ()) in
+    next (Read_rules (next_page, next_menu))
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
-  match game.gameplay with
-  | Game.Gameplay.Victory p -> next (Victory_screen p)
-  | _ ->
+  if has_quit inputs then
+    next End
+  else
+    match game.gameplay with
+    | Game.Gameplay.Victory p -> next (Victory_screen p)
+    | _ ->
       let game' = Game.next game inputs in
       next (Playing game')
 
@@ -125,8 +150,11 @@ let transition_trigger state new_state =
     (* Menu option changed *)
     | Menu m1, Menu m2 when m1 <> m2 && check_sound `menu_option ->
         add_sound `menu_option
+    (* Game rules page change *)
+    | Read_rules (m1, _), Read_rules (m2, _) when m1 <> m2 && check_sound `menu_option ->
+        add_sound `menu_option
     (* Menu validated *)
-    | Menu _, Playing _ when check_sound `select -> add_sound `select
+    | Menu _, (Playing _| Read_rules _) when check_sound `select -> add_sound `select
     (* Turn begins *)
     | ( (Menu _ | Playing {gameplay= Play _ | Replay _; _})
       , Playing {gameplay= Begin_turn _; _} )
@@ -171,7 +199,7 @@ let waiting_reducer state aid _old next =
 let reducer state inputs =
   let animations = List.filter Animation.is_active state.animations in
   let state = {state with animations} in
-  if has_quit inputs then {state with kind= End}
+  if has_error inputs then {state with kind= End}
   else
     let next ?(animations = state.animations) ?(speed = state.speed)
         ?(themes = state.themes) kind =
@@ -180,6 +208,7 @@ let reducer state inputs =
       match state.kind with
       | Title_screen -> title_reducer next state.themes
       | Menu m -> menu_reducer next m state.themes inputs
+      | Read_rules (p, m) -> read_rules_reducer next p m inputs
       | Playing g -> playing_reducer next g inputs
       | Victory_screen _ -> victory_reducer next
       | Waiting (aid, old, next) -> waiting_reducer state aid old next
