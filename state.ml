@@ -130,6 +130,7 @@ let transition_trigger state new_state =
     (* Turn begins *)
     | ( (Menu _ | Playing {gameplay= Play _ | Replay _; _})
       , Playing {gameplay= Begin_turn _; _} )
+     |Playing {gameplay= Play _; _}, Playing {gameplay= Replay _; _}
       when check_sound `cup_full ->
         add_sound `cup_full
     (* Victory *)

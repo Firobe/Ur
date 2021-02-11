@@ -241,16 +241,21 @@ module Gameplay = struct
     | None -> (logic', Begin_turn (next_player player))
     | Some pos -> (logic', Replay (player, pos))
 
-  let replay player logic pos =
+  let replay player logic pos inputs =
     let open Logic in
-    let n, dices = throw_dices () in
-    let pawn =
-      logic.pawns
-      |> List.filter (fun p -> p.owner = player && p.position = pos)
-      |> List.hd in
-    match compute_move logic (pawn, n) with
-    | Some move -> (logic, Choose (player, dices, [(pawn, move)]))
-    | None -> (logic, Choose (player, dices, []))
+    if
+      (not @@ is_human player logic)
+      || List.exists (( = ) Input.Throw_dices) inputs
+    then
+      let n, dices = throw_dices () in
+      let pawn =
+        logic.pawns
+        |> List.filter (fun p -> p.owner = player && p.position = pos)
+        |> List.hd in
+      match compute_move logic (pawn, n) with
+      | Some move -> (logic, Choose (player, dices, [(pawn, move)]))
+      | None -> (logic, Choose (player, dices, []))
+    else (logic, Replay (player, pos))
 
   let victory player logic = (logic, Victory player)
 end
@@ -263,7 +268,7 @@ let next game inputs =
     | Begin_turn p -> Gameplay.begin_turn p game.logic inputs
     | Choose (p, dices, am) -> Gameplay.wait_input inputs p dices game.logic am
     | Play (p, pm) -> Gameplay.play p game.logic pm
-    | Replay (p, pos) -> Gameplay.replay p game.logic pos
+    | Replay (p, pos) -> Gameplay.replay p game.logic pos inputs
     | Victory p -> Gameplay.victory p game.logic in
   {logic; gameplay}
 

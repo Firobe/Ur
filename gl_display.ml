@@ -394,7 +394,7 @@ let draw_cup game animations context =
         else (
           Cup.draw `Empty context.objects.cup ;
           Ok context ) )
-  | Begin_turn _ when not @@ currently_cannot_move animations ->
+  | (Replay _ | Begin_turn _) when not @@ currently_cannot_move animations ->
       Cup.draw `Full context.objects.cup ;
       play_animation_sound animations context `cup_full
   | _ ->
@@ -462,8 +462,7 @@ let draw_state state context =
     | Waiting (_, Menu m, _) | Menu m ->
         draw_menu m state.themes state.animations context
     (* Computation only frames *)
-    | Playing {gameplay= Play _; _} | Playing {gameplay= Replay _; _} ->
-        Result.ok context
+    | Playing {gameplay= Play _; _} -> Result.ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
         draw_playing g state.themes state.animations context
