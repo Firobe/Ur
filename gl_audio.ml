@@ -48,7 +48,8 @@ let load_theme themes =
       (fun (_, path, vol) ->
         let* path = Themes.prepend_path themes path in
         Sound.create path vol )
-      l in
+      l
+  in
   let* sounds = flatten_result_list loaded in
   let ressources = List.map2 (fun (a, _, _) b -> (a, b)) l sounds in
   let locks = [] in
@@ -61,16 +62,22 @@ let play_theme ?anim_unique t kind =
   let play locks =
     let* () =
       match List.assoc_opt kind t.ressources with
-      | Some s -> Sound.play s
-      | None -> Result.ok ()
+      | Some s ->
+          Sound.play s
+      | None ->
+          Result.ok ()
     in
-    Result.ok {t with locks} in
+    Result.ok {t with locks}
+  in
   match anim_unique with
-  | None -> play t.locks
+  | None ->
+      play t.locks
   | Some a -> (
     match List.assoc_opt kind t.locks with
-    | None -> play ((kind, a) :: t.locks)
-    | Some b when Animation.eq a b -> Result.ok t
+    | None ->
+        play ((kind, a) :: t.locks)
+    | Some b when Animation.eq a b ->
+        Result.ok t
     | Some _ ->
         let locks' = List.remove_assoc kind t.locks in
         play ((kind, a) :: locks') )

@@ -24,6 +24,7 @@ let coord_of_raw ss h off_x off_y rx ry =
   (x, y)
 
 let coord_in_board x y = x >= 0 && y >= 0 && x <= 7 && y <= 2
+
 let coord_in_cup x y = x < 0 && y < 1
 
 let coord_to_pos x y =

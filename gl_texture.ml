@@ -5,6 +5,7 @@ open Tgl4
 type t = {tid: int; surface: Sdl.surface; width: int; height: int}
 
 let width t = t.width
+
 let height t = t.height
 
 let init () =
@@ -37,8 +38,10 @@ let create_from_surface raw_surface =
 let create_from_bmp path =
   let* surface =
     match Tsdl_image.Image.load path with
-    | Some x -> Result.ok x
-    | None -> Result.error (`Msg ("Could not load texture " ^ path))
+    | Some x ->
+        Result.ok x
+    | None ->
+        Result.error (`Msg ("Could not load texture " ^ path))
   in
   create_from_surface surface
 

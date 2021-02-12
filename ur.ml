@@ -10,6 +10,7 @@ let rec game_loop state =
 
 (* TODO also search opam share *)
 let search_order = ["./data/"; "/usr/share/ur/data/"]
+
 let test_dir path = Sys.file_exists path && Sys.is_directory path
 
 let find_share_dir () =
@@ -21,8 +22,10 @@ let find_share_dir () =
         else None )
       None search_order
   with
-  | Some path -> path
-  | None -> failwith "Could not find data folder !"
+  | Some path ->
+      path
+  | None ->
+      failwith "Could not find data folder !"
 
 let init_state =
   let share = find_share_dir () in

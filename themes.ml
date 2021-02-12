@@ -59,7 +59,9 @@ type theme =
 type t = {themes: (string * theme) list; selected: string; data_path: string}
 
 let themes_dir = "themes"
+
 let shared_dir = "common_assets"
+
 let default_theme = "default"
 
 let load_theme dir name =
@@ -77,7 +79,8 @@ let load_themes share_path =
         Sys.readdir dir |> Array.to_list
         |> List.filter (fun s -> s <> shared_dir && Sys.is_directory (dest s))
         |> List.map (load_theme dir)
-        |> List.sort (fun (a, _) (b, _) -> compare a b) in
+        |> List.sort (fun (a, _) (b, _) -> compare a b)
+      in
       {themes; selected= default_theme; data_path= share_path}
     else failwith "Invalid themes directory"
   with Sys_error s -> failwith ("Error while loading themes: " ^ s)
@@ -87,7 +90,8 @@ let to_menu t =
   let n =
     List.mapi (fun i x -> (i, x)) names
     |> List.find (fun (_, x) -> x = default_theme)
-    |> fst in
+    |> fst
+  in
   (n, names)
 
 let current t = List.assoc t.selected t.themes
@@ -95,21 +99,35 @@ let current t = List.assoc t.selected t.themes
 let prepend_path t path =
   let* where, path =
     match String.split_on_char '%' path with
-    | [path] -> Result.ok (t.selected, path)
-    | [""; "SHARED"; path] -> Result.ok (shared_dir, path)
-    | _ -> Result.error (`Msg "Invalid use of %")
+    | [path] ->
+        Result.ok (t.selected, path)
+    | [""; "SHARED"; path] ->
+        Result.ok (shared_dir, path)
+    | _ ->
+        Result.error (`Msg "Invalid use of %")
   in
   Result.ok (Printf.sprintf "%s/%s/%s/%s" t.data_path themes_dir where path)
 
 let font t = (current t).font |> prepend_path t
+
 let background t = (current t).background
+
 let p1_pawn t = (current t).p1_pawn
+
 let p2_pawn t = (current t).p2_pawn
+
 let p1_pawn_alt t = (current t).p1_pawn_alt
+
 let p2_pawn_alt t = (current t).p2_pawn_alt
+
 let hollow_pawn t = (current t).hollow_pawn
+
 let text_colors t = (current t).text_colors
+
 let board t = (current t).board
+
 let dice_style t = (current t).dice_style
+
 let sounds t = (current t).sounds
+
 let selected t = t.selected

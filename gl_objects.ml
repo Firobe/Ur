@@ -2,8 +2,11 @@ open Tgl4
 open Gl_utils
 
 let pi = 3.14159265359
+
 let trig_norm x = 2. *. pi *. x
+
 let trig_counter i n = trig_norm @@ (float i /. float n)
+
 let smooth_progress prog = (cos (pi +. (prog *. pi)) +. 1.) /. 2.
 
 let triangle r g b =
@@ -20,17 +23,23 @@ let set_3d a i x y z =
 
 module Counter = struct
   type kind = Raw | Trig | Cos | Sin
+
   type t = {mutable n: int; max: int; kind: kind}
 
   let create kind max = {n= 0; max; kind}
+
   let incr t = t.n <- (t.n + 1) mod t.max
 
   let get t =
     match t.kind with
-    | Raw -> float t.n
-    | Trig -> trig_counter t.n t.max
-    | Cos -> cos (trig_counter t.n t.max)
-    | Sin -> sin (trig_counter t.n t.max)
+    | Raw ->
+        float t.n
+    | Trig ->
+        trig_counter t.n t.max
+    | Cos ->
+        cos (trig_counter t.n t.max)
+    | Sin ->
+        sin (trig_counter t.n t.max)
 end
 
 let circle r g b n ra =
@@ -53,10 +62,12 @@ module Background = struct
         let r, g, b = color_to_floats c in
         Gl.clear_color r g b 1. ;
         let vertices =
-          [|-2.; -1.; 0.; 11.; -1.; 0.; 11.; 4.; 0.; -2.; 4.; 0.|] in
+          [|-2.; -1.; 0.; 11.; -1.; 0.; 11.; 4.; 0.; -2.; 4.; 0.|]
+        in
         let colors =
           Array.init (Array.length vertices) (fun i ->
-              match i mod 3 with 0 -> r | 1 -> g | _ -> b ) in
+              match i mod 3 with 0 -> r | 1 -> g | _ -> b )
+        in
         let indices = [|0; 1; 2; 2; 3; 0|] in
         let* geometry =
           Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
@@ -102,7 +113,8 @@ module Cup = struct
 
   let create themes proj =
     match Themes.dice_style themes with
-    | Themes.Old -> Result.ok None
+    | Themes.Old ->
+        Result.ok None
     | Themes.Animated {empty_cup; fallen_cup; full_cup; _} ->
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
@@ -118,13 +130,18 @@ module Cup = struct
 
   let draw kind t =
     match (t, kind) with
-    | None, _ -> ()
-    | Some t, `Empty -> Gl_geometry.draw t.shader.pid t.empty
-    | Some t, `Full -> Gl_geometry.draw t.shader.pid t.full
-    | Some t, `Fallen -> Gl_geometry.draw t.shader.pid t.fallen
+    | None, _ ->
+        ()
+    | Some t, `Empty ->
+        Gl_geometry.draw t.shader.pid t.empty
+    | Some t, `Full ->
+        Gl_geometry.draw t.shader.pid t.full
+    | Some t, `Fallen ->
+        Gl_geometry.draw t.shader.pid t.fallen
 
   let delete = function
-    | None -> ()
+    | None ->
+        ()
     | Some t ->
         Gl_geometry.delete t.empty ;
         Gl_geometry.delete t.full ;
@@ -147,21 +164,68 @@ module Board = struct
               let c = i / 3 in
               let y = c / 9 in
               let x = c mod 9 in
-              match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. ) in
+              match i mod 3 with 0 -> float x | 1 -> float y | _ -> 0. )
+        in
         let colors =
           Array.init (Array.length vertices) (fun i ->
-              match i mod 3 with 0 -> r | 1 -> g | _ -> b ) in
+              match i mod 3 with 0 -> r | 1 -> g | _ -> b )
+        in
         let c x y = x + (9 * y) in
         let indices =
           [| (* Horizontal : bas en haut *)
-             c 0 0; c 4 0; c 6 0; c 8 0; c 0 1; c 8 1; c 0 2; c 8 2; c 0 3
-           ; c 4 3; c 6 3; c 8 3; (* Vertical : gauche à droite *)
-                                  c 0 0; c 0 3; c 1 0; c 1 3; c 2 0; c 2 3
-           ; c 3 0; c 3 3; c 4 0; c 4 3; c 5 1; c 5 2; c 6 0; c 6 3; c 7 0
-           ; c 7 3; c 8 0; c 8 3; (* Rosaces : haut en bas*)
-                                  c 0 0; c 1 1; c 0 1; c 1 0; c 6 0; c 7 1
-           ; c 6 1; c 7 0; c 3 1; c 4 2; c 3 2; c 4 1; c 0 2; c 1 3; c 0 3
-           ; c 1 2; c 6 2; c 7 3; c 6 3; c 7 2 |] in
+             c 0 0
+           ; c 4 0
+           ; c 6 0
+           ; c 8 0
+           ; c 0 1
+           ; c 8 1
+           ; c 0 2
+           ; c 8 2
+           ; c 0 3
+           ; c 4 3
+           ; c 6 3
+           ; c 8 3
+           ; (* Vertical : gauche à droite *)
+             c 0 0
+           ; c 0 3
+           ; c 1 0
+           ; c 1 3
+           ; c 2 0
+           ; c 2 3
+           ; c 3 0
+           ; c 3 3
+           ; c 4 0
+           ; c 4 3
+           ; c 5 1
+           ; c 5 2
+           ; c 6 0
+           ; c 6 3
+           ; c 7 0
+           ; c 7 3
+           ; c 8 0
+           ; c 8 3
+           ; (* Rosaces : haut en bas*)
+             c 0 0
+           ; c 1 1
+           ; c 0 1
+           ; c 1 0
+           ; c 6 0
+           ; c 7 1
+           ; c 6 1
+           ; c 7 0
+           ; c 3 1
+           ; c 4 2
+           ; c 3 2
+           ; c 4 1
+           ; c 0 2
+           ; c 1 3
+           ; c 0 3
+           ; c 1 2
+           ; c 6 2
+           ; c 7 3
+           ; c 6 3
+           ; c 7 2 |]
+        in
         let* geometry =
           Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
         in
@@ -228,7 +292,9 @@ module Dice = struct
         Ok (New {shader; dice_1; dice_2})
 
   let base_factor = 0.2
+
   let cap_factor = 0.05
+
   let is_on n = n <= 2
 
   let draw t ~n ~dice_n ~x ~y =
@@ -242,7 +308,8 @@ module Dice = struct
         if is_on n then
           let trans =
             Matrix.translation x (y +. (base_factor -. cap_factor)) 0.
-            |> Matrix.scale cap_factor cap_factor 0. in
+            |> Matrix.scale cap_factor cap_factor 0.
+          in
           Gl_geometry.draw ~trans pid t.cap
     | New t ->
         let pid = t.shader.pid in
@@ -256,7 +323,8 @@ module Dice = struct
         Gl_geometry.delete t.base ;
         Gl_geometry.delete t.cap ;
         Gl_shader.delete t.shader
-    | New _ -> ()
+    | New _ ->
+        ()
 end
 
 module Pawn = struct
@@ -308,13 +376,21 @@ module Pawn = struct
 
   let pawn_to_float pawn =
     let pawn_to_coord = function
-      | {Game.Logic.owner= P1; position= Intro x} -> (3 - x, 0)
-      | {owner= P2; position= Intro x} -> (3 - x, 2)
-      | {owner= P1; position= Outro x} -> (6 + (1 - x), 0)
-      | {owner= P2; position= Outro x} -> (6 + (1 - x), 2)
-      | {position= Main x; _} -> (x, 1)
-      | {owner= P1; position= Reserve} -> (4, 0)
-      | {owner= P2; position= Reserve} -> (4, 2) in
+      | {Game.Logic.owner= P1; position= Intro x} ->
+          (3 - x, 0)
+      | {owner= P2; position= Intro x} ->
+          (3 - x, 2)
+      | {owner= P1; position= Outro x} ->
+          (6 + (1 - x), 0)
+      | {owner= P2; position= Outro x} ->
+          (6 + (1 - x), 2)
+      | {position= Main x; _} ->
+          (x, 1)
+      | {owner= P1; position= Reserve} ->
+          (4, 0)
+      | {owner= P2; position= Reserve} ->
+          (4, 2)
+    in
     let nx, ny = pawn_to_coord pawn in
     (float nx +. 0.5, float ny +. 0.5)
 
@@ -323,7 +399,8 @@ module Pawn = struct
     for i = 0 to n - 1 do
       let trans =
         Matrix.translation (x +. (float i *. 0.23)) y 0.
-        |> Matrix.scale 0.2 0.2 0. in
+        |> Matrix.scale 0.2 0.2 0.
+      in
       Gl_geometry.draw ~trans s.pid p
     done
 
@@ -333,12 +410,14 @@ module Pawn = struct
       match choice with
       | None ->
           if Game.Logic.(pawn.owner) = P1 then (t.p1, t.s1) else (t.p2, t.s2)
-      | Some (`Empty, _) -> (t.c, t.sc)
+      | Some (`Empty, _) ->
+          (t.c, t.sc)
       | Some (`Full, _) ->
           if Game.Logic.(pawn.owner) = P1 then (t.p1a, t.s1a) else (t.p2a, t.s2a)
     in
     let def_scale =
-      match choice with None -> 1. | Some (_, x) -> 1.5 -. (x /. 2.) in
+      match choice with None -> 1. | Some (_, x) -> 1.5 -. (x /. 2.)
+    in
     let x, y, prog =
       match animate with
       | None ->
@@ -348,12 +427,14 @@ module Pawn = struct
           let prog' = smooth_progress prog in
           let x1, y1 = pawn_to_float pawn in
           let x2, y2 = pawn_to_float pawn' in
-          (x1 +. ((x2 -. x1) *. prog'), y1 +. ((y2 -. y1) *. prog'), prog) in
+          (x1 +. ((x2 -. x1) *. prog'), y1 +. ((y2 -. y1) *. prog'), prog)
+    in
     let scafa = 1. +. (cos ((pi /. 2.) +. (pi *. prog)) /. 3.) in
     let trans =
       Matrix.translation x y 0.
       |> Matrix.scale def_scale def_scale 0.
-      |> Matrix.scale scafa scafa 0. in
+      |> Matrix.scale scafa scafa 0.
+    in
     Gl_geometry.draw ~trans s.pid p
 
   let delete t =

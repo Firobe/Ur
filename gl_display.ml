@@ -5,17 +5,29 @@ open Result
 open Gl_objects
 
 let print_fps = false
+
 let enable_vsync = true
+
 let square_size = 150
+
 let board_width = 8
+
 let board_height = 3
+
 let board_offset_x = 2
+
 let board_offset_y = 1
+
 let board_margin_x = 1
+
 let board_margin_y = 1
+
 let board_total_width = board_width + board_offset_x + board_margin_x
+
 let board_total_height = board_height + board_offset_y + board_margin_y
+
 let window_width = board_total_width * square_size
+
 let window_height = board_total_height * square_size
 
 type objects =
@@ -62,17 +74,24 @@ let color themes =
   let open Themes in
   let colors = text_colors themes in
   function
-  | `Black -> colors.base
-  | `Selected -> colors.menu_selected
-  | `Alert -> colors.alert
-  | `Red -> colors.p1
-  | `Blue -> colors.p2
-  | `Random -> (Random.int 256, Random.int 256, Random.int 256)
+  | `Black ->
+      colors.base
+  | `Selected ->
+      colors.menu_selected
+  | `Alert ->
+      colors.alert
+  | `Red ->
+      colors.p1
+  | `Blue ->
+      colors.p2
+  | `Random ->
+      (Random.int 256, Random.int 256, Random.int 256)
 
 let draw_title themes animations context =
   let* context =
     match get_animation Title animations with
-    | None -> clear_screen context ; Ok context
+    | None ->
+        clear_screen context ; Ok context
     | Some t ->
         let* sounds =
           Gl_audio.play_theme context.sounds ~anim_unique:t `title
@@ -92,7 +111,8 @@ let draw_title themes animations context =
 
 let play_animation_sound animations context kind =
   match get_animation (Sound kind) animations with
-  | None -> Ok context
+  | None ->
+      Ok context
   | Some a ->
       let* sounds = Gl_audio.play_theme ~anim_unique:a context.sounds kind in
       Result.ok {context with sounds}
@@ -106,7 +126,8 @@ let draw_menu m themes animations context =
         ( float board_total_height -. float board_offset_y
           -. ((float i +. 0.5) *. delta)
         , c ) )
-      m.choices in
+      m.choices
+  in
   let cc = Menu.get_current_choice m in
   let open Animation in
   let* is_current, is_origin, progress, context =
@@ -126,7 +147,8 @@ let draw_menu m themes animations context =
           , Choice.eq sc
           , Animation.progress a
           , {context with sounds} )
-    | _ -> Result.ok (Choice.eq cc, (fun _ -> false), 1.0, context)
+    | _ ->
+        Result.ok (Choice.eq cc, (fun _ -> false), 1.0, context)
   in
   let* context = play_animation_sound animations context `menu_option in
   clear_screen context ;
@@ -137,7 +159,8 @@ let draw_menu m themes animations context =
         let iso = is_origin c in
         let col = color themes (if isc || iso then `Selected else `Black) in
         let local_progress =
-          if isc then progress else if iso then 1. -. progress else 0. in
+          if isc then progress else if iso then 1. -. progress else 0.
+        in
         let scale = 1. +. (0.2 *. local_progress) in
         let* t = text in
         let x = float board_width /. 2. in
@@ -150,7 +173,8 @@ let draw_menu m themes animations context =
 let draw_victory player themes animations context =
   let* context =
     match get_animation Victory animations with
-    | None -> clear_screen context ; Ok context
+    | None ->
+        clear_screen context ; Ok context
     | Some t ->
         let* sounds =
           Gl_audio.play_theme ~anim_unique:t context.sounds `victory
@@ -172,26 +196,32 @@ let draw_victory player themes animations context =
 let throw_dice_data () =
   let throw () =
     let r = Random.bool () in
-    1 + if r then 1 else 0 in
+    1 + if r then 1 else 0
+  in
   let dns = [throw (); throw (); throw (); throw ()] in
   let grid_x = 3 in
   let grid_y = 4 in
   let throw_coord () =
     let x = Random.int grid_x in
     let y = Random.int grid_y in
-    (x, y) in
+    (x, y)
+  in
   let already_chosen c l = List.exists (( = ) c) l in
   let rec choose_unique l =
     let r = throw_coord () in
-    if already_chosen r l then choose_unique l else r in
+    if already_chosen r l then choose_unique l else r
+  in
   let icoords =
     List.fold_left (fun acc () -> choose_unique acc :: acc) [] [(); (); (); ()]
   in
-  let sorted = List.sort (fun (_, y1) (_, y2) -> Stdlib.compare y2 y1) icoords in
+  let sorted =
+    List.sort (fun (_, y1) (_, y2) -> Stdlib.compare y2 y1) icoords
+  in
   let to_float_coords (x, y) =
     let x = ((0. +. 1.5) /. float grid_x *. float x) -. 1.5 in
     let y = ((3.0 -. 1.0) /. float grid_y *. float y) +. 1.0 in
-    (x, y) in
+    (x, y)
+  in
   let real = List.map to_float_coords sorted in
   {kinds= dns; coords= real}
 
@@ -202,13 +232,17 @@ let draw_dices (d1, d2, d3, d4) animation context =
     | None ->
         let data = throw_dice_data () in
         (data.kinds, data.coords, {context with dice_data= Some data})
-    | Some {kinds; coords} -> (kinds, coords, context) in
+    | Some {kinds; coords} ->
+        (kinds, coords, context)
+  in
   let prog =
-    match animation with None -> 1. | Some a -> Animation.progress a in
+    match animation with None -> 1. | Some a -> Animation.progress a
+  in
   let interpolate prog (ox, oy) (x, y) =
     let fx = ox +. ((x -. ox) *. prog) in
     let fy = oy +. ((y -. oy) *. prog) in
-    (fx, fy) in
+    (fx, fy)
+  in
   let kinds_and_coords = List.map2 (fun a b -> (a, b)) kinds coords in
   List.iter2
     (fun (dice_n, (x, y)) n ->
@@ -223,12 +257,18 @@ let draw_score game animations context themes =
   let s2 = Printf.sprintf "%d" game.logic.p2.points in
   let ss1 =
     match get_animation (Score_up P1) animations with
-    | None -> 1.
-    | Some a -> 3. -. (2. *. Animation.progress a) in
+    | None ->
+        1.
+    | Some a ->
+        3. -. (2. *. Animation.progress a)
+  in
   let ss2 =
     match get_animation (Score_up P2) animations with
-    | None -> 1.
-    | Some a -> 3. -. (2. *. Animation.progress a) in
+    | None ->
+        1.
+    | Some a ->
+        3. -. (2. *. Animation.progress a)
+  in
   let* text =
     Gl_text.write context.text (color themes `Red) ~x:5. ~y:0.5 ~scale:ss1 s1
   in
@@ -254,7 +294,8 @@ let maybe_draw_cannot_move animations context themes =
         Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
       in
       Result.ok {context with text; sounds}
-  | _ -> Result.ok context
+  | _ ->
+      Result.ok context
 
 let draw_pawns context animations game (choices, choice_prog) =
   let open Game in
@@ -267,10 +308,13 @@ let draw_pawns context animations game (choices, choice_prog) =
         @@ List.exists
              (fun a ->
                match a.kind with
-               | Pawn_moving (mp, _) when mp = pawn -> true
-               | _ -> false )
+               | Pawn_moving (mp, _) when mp = pawn ->
+                   true
+               | _ ->
+                   false )
              animations )
-      game.logic.pawns in
+      game.logic.pawns
+  in
   let is_choice p = List.exists (( = ) p) choices in
   List.iter
     (fun pawn ->
@@ -293,13 +337,16 @@ let retrieve_choice_state game animations context =
       let choice_a = get_animation Choice animations in
       let choice_prog =
         match choice_a with
-        | None -> 1.
+        | None ->
+            1.
         | Some a ->
             let prog = Animation.progress a in
-            if prog < 0.9 then -1. else (prog -. 0.9) *. 10. in
+            if prog < 0.9 then -1. else (prog -. 0.9) *. 10.
+      in
       let choice_pawns = List.map (fun (pawn, _) -> pawn) choices in
       Result.ok (choice_pawns, choice_prog, context)
-  | _ -> Result.ok ([], 1., context)
+  | _ ->
+      Result.ok ([], 1., context)
 
 let draw_moving_pawn animations context =
   List.fold_left
@@ -307,7 +354,8 @@ let draw_moving_pawn animations context =
       let* context = acc in
       let prog = Animation.progress a in
       let d orig dest p =
-        Pawn.draw context.objects.pawn ~animate:(dest, p) orig in
+        Pawn.draw context.objects.pawn ~animate:(dest, p) orig
+      in
       match a.kind with
       | Pawn_moving (p, Move position) ->
           d p {p with position} prog ;
@@ -333,7 +381,8 @@ let draw_moving_pawn animations context =
             Gl_audio.play_theme ~anim_unique:a context.sounds `moving
           in
           Result.ok {context with sounds}
-      | _ -> Result.ok context )
+      | _ ->
+          Result.ok context )
     (Result.ok context) animations
 
 let currently_cannot_move animations =
@@ -344,7 +393,8 @@ let currently_cannot_move animations =
 let should_reset_dice_data game animations =
   let open Game in
   match game.gameplay with
-  | Choose _ -> false
+  | Choose _ ->
+      false
   | _ ->
       (* Retain dice data when showing no move *)
       not @@ currently_cannot_move animations
@@ -370,7 +420,8 @@ let maybe_draw_dices game animations context =
   | Choose (_, dices, _) ->
       let choice_a = get_animation Choice animations in
       draw_dices dices choice_a context
-  | _ -> context
+  | _ ->
+      context
 
 let draw_cup game animations context =
   let open Game in
@@ -409,13 +460,15 @@ let draw_current_player game animations context themes =
         (color themes `Alert)
         ~scale:0.8 ~x:(-1.0) ~y:3.5 msg
     in
-    Result.ok {context with text} in
+    Result.ok {context with text}
+  in
   match game.gameplay with
   | Begin_turn p when not @@ currently_cannot_move animations ->
       write_in_corner (Format.asprintf "Go, %a!" Game.pp_player p)
   | Replay (p, _) when not @@ currently_cannot_move animations ->
       write_in_corner (Format.asprintf "Again, %a!" Game.pp_player p)
-  | _ -> Result.ok context
+  | _ ->
+      Result.ok context
 
 let draw_rules page themes animations context =
   clear_screen context ;
@@ -444,7 +497,8 @@ let draw_playing game themes animations context =
   (* Test if dice data should be reset *)
   let context =
     if should_reset_dice_data game animations then {context with dice_data= None}
-    else context in
+    else context
+  in
   (* Play select sound if coming from menu *)
   let* context = play_animation_sound animations context `select in
   (* Draw whole board *)
@@ -468,6 +522,7 @@ module Timer = struct
   type t = {last: float ref; length: float}
 
   let create length = {last= ref (time ()); length}
+
   let reset t = t.last := time ()
 
   let check t =
@@ -476,7 +531,9 @@ end
 
 module Fps = struct
   let frames = ref 0
+
   let interval = 5.
+
   let timer = Timer.create interval
 
   let compute () =
@@ -504,7 +561,8 @@ let draw_state state context =
     | Read_rules (page, _) ->
         draw_rules page state.themes state.animations context
     (* Computation only frames *)
-    | Playing {gameplay= Play _; _} -> Result.ok context
+    | Playing {gameplay= Play _; _} ->
+        Result.ok context
     (* Actual game *)
     | Waiting (_, _, Playing g) | Playing g ->
         draw_playing g state.themes state.animations context
@@ -512,9 +570,12 @@ let draw_state state context =
     | Waiting (_, _, Victory_screen p) | Victory_screen p ->
         draw_victory p state.themes state.animations context
     (* Non-existent waiting combinations *)
-    | Waiting (_, _, _) -> Result.ok context
+    | Waiting (_, _, _) ->
+        Result.ok context
     (* Game is going to shut down *)
-    | End -> Result.ok context in
+    | End ->
+        Result.ok context
+  in
   f state.kind
 
 let process_events context =
@@ -532,14 +593,17 @@ let process_events context =
         let ry = get e mouse_button_y in
         let x, y =
           Input.coord_of_raw square_size window_height board_offset_x
-            board_offset_y rx ry in
+            board_offset_y rx ry
+        in
         if Input.coord_in_board x y then
           let pos = Input.coord_to_pos x y in
           context.buffer_input (Input.Pawn pos)
         else if Input.coord_in_cup x y then
           context.buffer_input Input.Throw_dices
-    | `Quit -> context.buffer_input Input.Quit
-    | `Key_down when key_scancode e = `Escape -> context.buffer_input Input.Quit
+    | `Quit ->
+        context.buffer_input Input.Quit
+    | `Key_down when key_scancode e = `Escape ->
+        context.buffer_input Input.Quit
     | `Key_down when key_scancode e = `Space ->
         context.buffer_input Input.Throw_dices
     | `Key_down when key_scancode e = `Up ->
@@ -558,8 +622,10 @@ let process_events context =
           let w, h = Sdl.get_window_size context.win in
           reshape context.win w h ;
           should_redraw := true
-      | _ -> () )
-    | _ -> ()
+      | _ ->
+          () )
+    | _ ->
+        ()
   done ;
   !should_redraw
 
@@ -611,7 +677,12 @@ let rec loop state context =
 
 let pp_opengl_info ppf () =
   let pp = Format.fprintf in
-  let pp_opt ppf = function None -> pp ppf "error" | Some s -> pp ppf "%s" s in
+  let pp_opt ppf = function
+    | None ->
+        pp ppf "error"
+    | Some s ->
+        pp ppf "%s" s
+  in
   pp ppf "Using OpenGL backend@." ;
   pp ppf "@[<v>@," ;
   pp ppf "Renderer @[<v>@[%a@]@," pp_opt (Gl.get_string Gl.renderer) ;
@@ -660,10 +731,12 @@ let init init_state =
   let* font = Themes.font init_state.themes in
   let text = Gl_text.set_default text font 42 in
   let clean_guard = function
-    | Ok o -> Ok o
+    | Ok o ->
+        Ok o
     | Error (`Msg e) ->
         let* () = terminate_video win ctx text in
-        Error (`Msg e) in
+        Error (`Msg e)
+  in
   let* objects = clean_guard @@ init_objects init_state.themes in
   let* sounds = clean_guard @@ Gl_audio.load_theme init_state.themes in
   Gl.enable Gl.multisample ;
@@ -688,16 +761,19 @@ let start ~poll_state ~buffer_input ~send_inputs ~init_state ~error =
         ; objects
         ; text
         ; sounds
-        ; dice_data } in
+        ; dice_data }
+      in
       let* last_context = loop init_state context in
       terminate last_context
     with
-    | Ok () -> Ok ()
+    | Ok () ->
+        Ok ()
     | Error (`Msg msg) ->
         Sdl.log_critical Sdl.Log.category_video "%s" msg ;
         Ok (error ~at_init:false msg)
   with
-  | Ok () -> ()
+  | Ok () ->
+      ()
   | Error (`Msg msg) ->
       Sdl.log_critical Sdl.Log.category_video "INIT: %s" msg ;
       error ~at_init:true msg

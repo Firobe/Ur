@@ -3,7 +3,8 @@ module Choice = struct
 
   let get_text c =
     match c.options with
-    | None -> c.header
+    | None ->
+        c.header
     | Some (s, l) ->
         let v = List.nth l s in
         Printf.sprintf "< %s: %s >" c.header v
@@ -45,12 +46,14 @@ let move_option t delta =
       (fun c ->
         if c = cc then
           match c.options with
-          | None -> c
+          | None ->
+              c
           | Some (s, l) ->
               let s' = modulo (s + delta) (List.length l) in
               {c with options= Some (s', l)}
         else c )
-      t.choices in
+      t.choices
+  in
   {t with choices}
 
 let default_menu themes =

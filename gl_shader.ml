@@ -8,7 +8,8 @@ let read_all_file data_path filename =
       try
         let line = input_line chan in
         Printf.sprintf "%s\n%s" line (aux chan)
-      with End_of_file -> "" in
+      with End_of_file -> ""
+    in
     let src = aux chan in
     close_in chan ; Result.ok src
   with Sys_error m -> Result.error (`Msg m)
@@ -60,7 +61,8 @@ let create data_path ?(v_filename = "shaders/default.vert")
         if Gl.get_attrib_location pid name = -1 then
           let msg =
             Printf.sprintf "%s is not a variable in [%s | %s]" name v_filename
-              f_filename in
+              f_filename
+          in
           Error (`Msg msg)
         else
           let* () = status in

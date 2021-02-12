@@ -10,7 +10,10 @@ end
 
 module Make : functor (_ : DISPLAY_ENGINE) -> sig
   val sync : State.t -> unit
+
   val wait_inputs : unit -> Input.t list
+
   val init : State.t -> unit
+
   val terminate : unit -> unit
 end

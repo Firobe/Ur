@@ -3,6 +3,7 @@ open Tgl4
 open Gl_utils
 
 type int_bigarray = (int, int8_unsigned_elt, c_layout) Array1.t
+
 type float_bigarray = (float, float32_elt, c_layout) Array1.t
 
 type raw =
@@ -28,13 +29,16 @@ let create raw =
   let bind_attrib id loc dim typ =
     Gl.bind_buffer Gl.array_buffer id ;
     Gl.enable_vertex_attrib_array loc ;
-    Gl.vertex_attrib_pointer loc dim typ false 0 (`Offset 0) in
+    Gl.vertex_attrib_pointer loc dim typ false 0 (`Offset 0)
+  in
   Gl.bind_vertex_array gid ;
   Gl.bind_buffer Gl.element_array_buffer iid ;
   bind_attrib vid 0 3 Gl.float ;
   ( match snd raw.frags with
-  | `Colored -> bind_attrib cid 1 3 Gl.float
-  | `Textured -> bind_attrib cid 1 2 Gl.float ) ;
+  | `Colored ->
+      bind_attrib cid 1 3 Gl.float
+  | `Textured ->
+      bind_attrib cid 1 2 Gl.float ) ;
   Gl.bind_vertex_array 0 ;
   Gl.bind_buffer Gl.array_buffer 0 ;
   Gl.bind_buffer Gl.element_array_buffer 0 ;
@@ -43,14 +47,16 @@ let create raw =
     | Some s ->
         let* texture = Gl_texture.create_from_bmp s in
         Result.ok (Some texture)
-    | None -> Result.ok None
+    | None ->
+        Result.ok None
   in
   let result =
     { gid
     ; bids= [iid; vid; cid]
     ; length= Bigarray.Array1.dim raw.indices
     ; mode
-    ; texture } in
+    ; texture }
+  in
   Result.ok result
 
 let of_arrays ?texture ?(frag_kind = `Colored) (mode, v, c, i) =
@@ -59,7 +65,8 @@ let of_arrays ?texture ?(frag_kind = `Colored) (mode, v, c, i) =
     ; frags= (bigarray_of Bigarray.float32 c, frag_kind)
     ; indices= bigarray_of Bigarray.int8_unsigned i
     ; mode
-    ; texture } in
+    ; texture }
+  in
   create raw
 
 let delete t =

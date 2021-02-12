@@ -27,6 +27,7 @@ module Text_object = struct
     ; quad_height: float }
 
   let v_filename = "shaders/textured.vert"
+
   let f_filename = "shaders/textured.frag"
 
   let create data_path proj texture =
@@ -83,7 +84,8 @@ let set_default t font_name font_size =
 let get_font_spec t font_name font_size =
   let* font_name =
     match font_name with
-    | Some x -> x
+    | Some x ->
+        x
     | None ->
         if Option.is_some t.default_index then
           Ok (fst (Option.get t.default_index))
@@ -91,7 +93,8 @@ let get_font_spec t font_name font_size =
   in
   let* font_size =
     match font_size with
-    | Some x -> x
+    | Some x ->
+        x
     | None ->
         if Option.is_some t.default_index then
           Ok (snd (Option.get t.default_index))
@@ -102,7 +105,8 @@ let get_font_spec t font_name font_size =
 let get_font t font_name font_size =
   let* font, cache =
     match Font_cache.find_opt (font_name, font_size) t.font_cache with
-    | Some f -> Ok (f, t.font_cache)
+    | Some f ->
+        Ok (f, t.font_cache)
     | None ->
         let* font = Ttf.open_font font_name font_size in
         Ok (font, Font_cache.add (font_name, font_size) font t.font_cache)
@@ -119,7 +123,8 @@ let gen_texture t font_name font_size color text =
 let get_obj t font_name font_size color text =
   let key = (font_name, font_size, color, text) in
   match Texture_cache.find_opt key t.texture_cache with
-  | Some obj -> Ok (obj, t)
+  | Some obj ->
+      Ok (obj, t)
   | None ->
       let r, g, b, a = color in
       let sdl_color = Sdl.Color.create ~r ~g ~b ~a in
