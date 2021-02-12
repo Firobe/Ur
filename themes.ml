@@ -60,6 +60,7 @@ type t = {themes: (string * theme) list; selected: string; data_path: string}
 
 let themes_dir = "themes"
 let shared_dir = "common_assets"
+let default_theme = "default"
 
 let load_theme dir name =
   let dest = Printf.sprintf "%s/%s/" dir name in
@@ -77,7 +78,7 @@ let load_themes share_path =
         |> List.filter (fun s -> s <> shared_dir && Sys.is_directory (dest s))
         |> List.map (load_theme dir)
         |> List.sort (fun (a, _) (b, _) -> compare a b) in
-      {themes; selected= "naya"; data_path= share_path}
+      {themes; selected= default_theme; data_path= share_path}
     else failwith "Invalid themes directory"
   with Sys_error s -> failwith ("Error while loading themes: " ^ s)
 
@@ -85,7 +86,7 @@ let to_menu t =
   let names = List.map fst t.themes in
   let n =
     List.mapi (fun i x -> (i, x)) names
-    |> List.find (fun (_, x) -> x = "naya")
+    |> List.find (fun (_, x) -> x = default_theme)
     |> fst in
   (n, names)
 
