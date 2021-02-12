@@ -1,9 +1,9 @@
 open Tgl4
 open Gl_utils
 
-let read_all_file filename =
+let read_all_file data_path filename =
   try
-    let chan = open_in filename in
+    let chan = open_in (data_path ^ "/" ^ filename) in
     let rec aux chan =
       try
         let line = input_line chan in
@@ -13,8 +13,8 @@ let read_all_file filename =
     close_in chan ; Result.ok src
   with Sys_error m -> Result.error (`Msg m)
 
-let compile_shader filename typ =
-  let* src = read_all_file filename in
+let compile_shader data_path filename typ =
+  let* src = read_all_file data_path filename in
   let get_shader sid e = get_int (Gl.get_shaderiv sid e) in
   let sid = Gl.create_shader typ in
   Gl.shader_source sid src ;
@@ -31,10 +31,10 @@ let compile_shader filename typ =
 
 type t = {pid: int}
 
-let create ?(v_filename = "shaders/default.vert")
+let create data_path ?(v_filename = "shaders/default.vert")
     ?(f_filename = "shaders/default.frag") attributes =
-  let* vid = compile_shader v_filename Gl.vertex_shader in
-  let* fid = compile_shader f_filename Gl.fragment_shader in
+  let* vid = compile_shader data_path v_filename Gl.vertex_shader in
+  let* fid = compile_shader data_path f_filename Gl.fragment_shader in
   let pid = Gl.create_program () in
   let get_program pid e = get_int (Gl.get_programiv pid e) in
   Gl.attach_shader pid vid ;

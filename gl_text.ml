@@ -29,7 +29,7 @@ module Text_object = struct
   let v_filename = "shaders/textured.vert"
   let f_filename = "shaders/textured.frag"
 
-  let create proj texture =
+  let create data_path proj texture =
     let frag_kind = `Textured in
     (* TODO correctly zone the stuff *)
     let quad_width = float (Gl_texture.width texture) /. 100. in
@@ -37,7 +37,8 @@ module Text_object = struct
     let zone = text_rectangle 0. 0. quad_width quad_height in
     let* geometry = Gl_geometry.of_arrays ~frag_kind zone in
     let* shader =
-      Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+      Gl_shader.create data_path ~v_filename ~f_filename
+        ["vertex"; "texture_coords"]
     in
     Gl_shader.send_matrix shader "view" proj ;
     Ok {geometry; shader; texture; quad_width; quad_height}
@@ -57,17 +58,18 @@ module Text_object = struct
 end
 
 type t =
-  { font_cache: Ttf.font Font_cache.t
+  { data_path: string
+  ; font_cache: Ttf.font Font_cache.t
   ; texture_cache: Text_object.t Texture_cache.t
   ; default_index: Font_index.t option
   ; proj: Matrix.t }
 
-let init proj =
+let init proj data_path =
   if Sdl.Init.test (Sdl.was_init None) Sdl.Init.video then
     let* _ = Ttf.init () in
     let font_cache = Font_cache.empty in
     let texture_cache = Texture_cache.empty in
-    Ok {font_cache; texture_cache; default_index= None; proj}
+    Ok {font_cache; texture_cache; default_index= None; proj; data_path}
   else Error (`Msg "Tried to initialize SDL_ttf without initializing SDL")
 
 let add_font cache font_name font_size =
@@ -122,7 +124,7 @@ let get_obj t font_name font_size color text =
       let r, g, b, a = color in
       let sdl_color = Sdl.Color.create ~r ~g ~b ~a in
       let* texture, t = gen_texture t font_name font_size sdl_color text in
-      let* obj = Text_object.create t.proj texture in
+      let* obj = Text_object.create t.data_path t.proj texture in
       let texture_cache = Texture_cache.add key obj t.texture_cache in
       Ok (obj, {t with texture_cache})
 

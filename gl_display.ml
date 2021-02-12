@@ -655,8 +655,9 @@ let init init_state =
   let* _ = Sdl.gl_set_swap_interval (if enable_vsync then 1 else 0) in
   Gl.enable Gl.blend ;
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
-  let* text = Gl_text.init proj_matrix in
-  let* font = State.(Themes.font init_state.themes) in
+  let open State in
+  let* text = Gl_text.init proj_matrix init_state.themes.data_path in
+  let* font = Themes.font init_state.themes in
   let text = Gl_text.set_default text font 42 in
   let clean_guard = function
     | Ok o -> Ok o

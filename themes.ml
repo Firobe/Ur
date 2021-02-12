@@ -56,7 +56,7 @@ type theme =
   ; sounds: (sound_type * string * float) list [@sexp.list] }
 [@@deriving sexp]
 
-type t = {themes: (string * theme) list; selected: string}
+type t = {themes: (string * theme) list; selected: string; data_path: string}
 
 let themes_dir = "themes"
 let shared_dir = "common_assets"
@@ -67,8 +67,8 @@ let load_theme dir name =
   let t = theme_of_sexp s in
   (name, t)
 
-let load_themes () =
-  let dir = themes_dir in
+let load_themes share_path =
+  let dir = Printf.sprintf "%s/%s" share_path themes_dir in
   try
     if Sys.is_directory dir then
       let dest s = Printf.sprintf "%s/%s/" dir s in
@@ -77,7 +77,7 @@ let load_themes () =
         |> List.filter (fun s -> s <> shared_dir && Sys.is_directory (dest s))
         |> List.map (load_theme dir)
         |> List.sort (fun (a, _) (b, _) -> compare a b) in
-      {themes; selected= "naya"}
+      {themes; selected= "naya"; data_path= share_path}
     else failwith "Invalid themes directory"
   with Sys_error s -> failwith ("Error while loading themes: " ^ s)
 
@@ -98,7 +98,7 @@ let prepend_path t path =
     | [""; "SHARED"; path] -> Result.ok (shared_dir, path)
     | _ -> Result.error (`Msg "Invalid use of %")
   in
-  Result.ok (Printf.sprintf "%s/%s/%s" themes_dir where path)
+  Result.ok (Printf.sprintf "%s/%s/%s/%s" t.data_path themes_dir where path)
 
 let font t = (current t).font |> prepend_path t
 let background t = (current t).background

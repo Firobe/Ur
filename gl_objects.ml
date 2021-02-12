@@ -61,7 +61,7 @@ module Background = struct
         let* geometry =
           Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
         in
-        let* shader = Gl_shader.create ["vertex"; "color"] in
+        let* shader = Gl_shader.create themes.data_path ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
     | Themes.Texture {name; x; y; w; h} ->
@@ -72,7 +72,8 @@ module Background = struct
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
-          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+          Gl_shader.create themes.data_path ~v_filename ~f_filename
+            ["vertex"; "texture_coords"]
         in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
@@ -106,7 +107,8 @@ module Cup = struct
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
-          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+          Gl_shader.create themes.data_path ~v_filename ~f_filename
+            ["vertex"; "texture_coords"]
         in
         let* fallen = load_cup themes fallen_cup in
         let* empty = load_cup themes empty_cup in
@@ -163,7 +165,7 @@ module Board = struct
         let* geometry =
           Gl_geometry.of_arrays (Gl.lines, vertices, colors, indices)
         in
-        let* shader = Gl_shader.create ["vertex"; "color"] in
+        let* shader = Gl_shader.create themes.data_path ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
     | Themes.Texture {name; x; y; w; h} ->
@@ -174,7 +176,8 @@ module Board = struct
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
-          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+          Gl_shader.create themes.data_path ~v_filename ~f_filename
+            ["vertex"; "texture_coords"]
         in
         Gl_shader.send_matrix shader "view" proj ;
         Ok {geometry; shader}
@@ -205,14 +208,15 @@ module Dice = struct
     | Themes.Old ->
         let* base = Gl_geometry.of_arrays @@ triangle 0. 0. 0. in
         let* cap = Gl_geometry.of_arrays @@ triangle 1. 1. 1. in
-        let* shader = Gl_shader.create ["vertex"; "color"] in
+        let* shader = Gl_shader.create themes.data_path ["vertex"; "color"] in
         Gl_shader.send_matrix shader "view" proj ;
         Ok (Old {base; cap; shader})
     | Themes.Animated {dice_1; dice_2; _} ->
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
-          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+          Gl_shader.create themes.data_path ~v_filename ~f_filename
+            ["vertex"; "texture_coords"]
         in
         let* dice_1 =
           List.map (load_dice themes) dice_1 |> flatten_result_list
@@ -274,7 +278,7 @@ module Pawn = struct
     | Color c ->
         let r, g, b = color_to_floats c in
         let* geom = Gl_geometry.of_arrays @@ circle r g b 200 0.4 in
-        let* shader = Gl_shader.create ["vertex"; "color"] in
+        let* shader = Gl_shader.create themes.data_path ["vertex"; "color"] in
         Result.ok (geom, shader)
     | Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-0.5 +. x) (-0.5 +. y) w h in
@@ -284,7 +288,8 @@ module Pawn = struct
         let v_filename = "shaders/textured.vert" in
         let f_filename = "shaders/textured.frag" in
         let* shader =
-          Gl_shader.create ~v_filename ~f_filename ["vertex"; "texture_coords"]
+          Gl_shader.create themes.data_path ~v_filename ~f_filename
+            ["vertex"; "texture_coords"]
         in
         Result.ok (geom, shader)
 
