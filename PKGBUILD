@@ -1,6 +1,6 @@
 # Maintainer: Virgile Robles <virgile.robles@pm.me>
 pkgname=ur-git
-pkgver=0.2
+pkgver=r111.83e8ae7
 pkgrel=1
 pkgdesc="Graphical implementation of the Royal Game of Ur"
 arch=('x86_64')
@@ -28,12 +28,18 @@ pkgver() {
 
 build() {
   cd "$srcdir/$pkgname"
+  if [[ -d "_opam" ]]; then
+      echo -n "Removing previous switch... "
+      rm -rf "_opam"
+      echo "done."
+  fi
   ./gen-dune.sh
+  opam init --bare --no-setup
   opam switch create -y --deps-only .
-  dune build @install
+  opam exec -- dune build @install
 }
 
 package() {
   cd "$srcdir/$pkgname"
-  dune install --prefix="$pkgdir/usr/"
+  opam exec -- dune install --prefix="$pkgdir/usr/"
 }
