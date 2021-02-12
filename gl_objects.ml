@@ -66,7 +66,7 @@ module Background = struct
         Ok {geometry; shader}
     | Themes.Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
-        let texture = Themes.prepend_path themes name in
+        let* texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in
@@ -95,7 +95,7 @@ module Cup = struct
 
   let load_cup themes Themes.{name; x; y; w; h} =
     let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
-    let texture = Themes.prepend_path themes name in
+    let* texture = Themes.prepend_path themes name in
     let frag_kind = `Textured in
     Gl_geometry.of_arrays ~frag_kind ~texture obj
 
@@ -168,7 +168,7 @@ module Board = struct
         Ok {geometry; shader}
     | Themes.Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
-        let texture = Themes.prepend_path themes name in
+        let* texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in
@@ -196,7 +196,7 @@ module Dice = struct
 
   let load_dice themes Themes.{name; x; y; w; h} =
     let obj = text_rectangle x y w h in
-    let texture = Themes.prepend_path themes name in
+    let* texture = Themes.prepend_path themes name in
     let frag_kind = `Textured in
     Gl_geometry.of_arrays ~frag_kind ~texture obj
 
@@ -278,7 +278,7 @@ module Pawn = struct
         Result.ok (geom, shader)
     | Texture {name; x; y; w; h} ->
         let obj = text_rectangle (-0.5 +. x) (-0.5 +. y) w h in
-        let texture = Themes.prepend_path themes name in
+        let* texture = Themes.prepend_path themes name in
         let frag_kind = `Textured in
         let* geom = Gl_geometry.of_arrays ~frag_kind ~texture obj in
         let v_filename = "shaders/textured.vert" in

@@ -1,5 +1,6 @@
 open Sexplib
 open Sexplib.Std
+open Gl_utils
 
 type color = int * int * int [@@deriving sexp]
 
@@ -58,6 +59,7 @@ type theme =
 type t = {themes: (string * theme) list; selected: string}
 
 let themes_dir = "themes"
+let shared_dir = "common_assets"
 
 let load_theme dir name =
   let dest = Printf.sprintf "%s/%s/" dir name in
@@ -72,7 +74,7 @@ let load_themes () =
       let dest s = Printf.sprintf "%s/%s/" dir s in
       let themes =
         Sys.readdir dir |> Array.to_list
-        |> List.filter (fun s -> Sys.is_directory (dest s))
+        |> List.filter (fun s -> s <> shared_dir && Sys.is_directory (dest s))
         |> List.map (load_theme dir)
         |> List.sort (fun (a, _) (b, _) -> compare a b) in
       {themes; selected= "naya"}
@@ -88,7 +90,16 @@ let to_menu t =
   (n, names)
 
 let current t = List.assoc t.selected t.themes
-let prepend_path t path = Printf.sprintf "%s/%s/%s" themes_dir t.selected path
+
+let prepend_path t path =
+  let* where, path =
+    match String.split_on_char '%' path with
+    | [path] -> Result.ok (t.selected, path)
+    | [""; "SHARED"; path] -> Result.ok (shared_dir, path)
+    | _ -> Result.error (`Msg "Invalid use of %")
+  in
+  Result.ok (Printf.sprintf "%s/%s/%s" themes_dir where path)
+
 let font t = (current t).font |> prepend_path t
 let background t = (current t).background
 let p1_pawn t = (current t).p1_pawn

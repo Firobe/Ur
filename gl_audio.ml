@@ -46,7 +46,7 @@ let load_theme themes =
   let loaded =
     List.map
       (fun (_, path, vol) ->
-        let path = Themes.prepend_path themes path in
+        let* path = Themes.prepend_path themes path in
         Sound.create path vol )
       l in
   let* sounds = flatten_result_list loaded in

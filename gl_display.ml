@@ -587,7 +587,8 @@ let change_theme themes context =
   Gl_audio.delete_sounds context.sounds ;
   let* sounds = Gl_audio.load_theme themes in
   let* objects = init_objects themes in
-  let text = Gl_text.set_default context.text (Themes.font themes) 42 in
+  let* font = Themes.font themes in
+  let text = Gl_text.set_default context.text font 42 in
   Result.ok {context with objects; text; sounds}
 
 let rec loop state context =
@@ -659,7 +660,8 @@ let init init_state =
   Gl.enable Gl.blend ;
   Gl.blend_func Gl.src_alpha Gl.one_minus_src_alpha ;
   let* text = Gl_text.init proj_matrix in
-  let text = Gl_text.set_default text State.(Themes.font init_state.themes) 42 in
+  let* font = State.(Themes.font init_state.themes) in
+  let text = Gl_text.set_default text font 42 in
   let clean_guard = function
     | Ok o -> Ok o
     | Error (`Msg e) ->

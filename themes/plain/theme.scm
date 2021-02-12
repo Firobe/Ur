@@ -1,5 +1,5 @@
 (
- (font "klill.ttf")
+ (font "%SHARED%/klill.ttf")
  (text_colors (
    (base (0 0 0))
    (menu_selected (255 165 0))
