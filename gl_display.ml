@@ -517,10 +517,6 @@ let draw_state state context =
     | End -> Result.ok context in
   f state.kind
 
-let quit context =
-  Format.printf "User quit.@." ;
-  context.buffer_input Input.Quit
-
 let process_events context =
   let e = Sdl.Event.create () in
   let key_scancode e = Sdl.Scancode.enum Sdl.Event.(get e keyboard_scancode) in
@@ -542,8 +538,8 @@ let process_events context =
           context.buffer_input (Input.Pawn pos)
         else if Input.coord_in_cup x y then
           context.buffer_input Input.Throw_dices
-    | `Quit -> quit context
-    | `Key_down when key_scancode e = `Escape -> quit context
+    | `Quit -> context.buffer_input Input.Quit
+    | `Key_down when key_scancode e = `Escape -> context.buffer_input Input.Quit
     | `Key_down when key_scancode e = `Space ->
         context.buffer_input Input.Throw_dices
     | `Key_down when key_scancode e = `Up ->
