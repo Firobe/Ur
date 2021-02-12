@@ -31,6 +31,14 @@ let get_string len f =
   let a = bigarray_create Bigarray.char len in
   f a ; Gl.string_of_bigarray a
 
+let get_string_with_length len f =
+  let a = bigarray_create Bigarray.char len in
+  let i = bigarray_create Bigarray.int32 1 in
+  f (Some i) a ;
+  let ret_len = Int32.to_int i.{0} in
+  assert (ret_len = len) ;
+  Gl.string_of_bigarray a
+
 let str = Printf.sprintf
 
 let text_rectangle x y w h =

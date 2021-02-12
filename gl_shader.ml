@@ -25,8 +25,13 @@ let compile_shader data_path filename typ =
     let len = get_shader sid Gl.info_log_length in
     let log = get_string len (Gl.get_shader_info_log sid len None) in
     Gl.delete_shader sid ;
+    let real_src =
+      let len = get_shader sid Gl.shader_source_length in
+      get_string_with_length len (Gl.get_shader_source sid len)
+    in
     let msg =
-      Printf.sprintf "Upon compiling %s: %s\nSource was : %s" filename log src
+      Printf.sprintf "Upon compiling %s: %s\nSource was : %s" filename log
+        real_src
     in
     Error (`Msg msg)
 
