@@ -190,13 +190,22 @@ let transition_trigger state new_state =
     | _ -> new_state in
   f state new_state []
 
+let input_interrupts_wait_to nk input =
+  match (input, nk) with Input.Quit, Playing _ -> true | _ -> false
+
 (* Waiting *)
-let waiting_reducer state aid _old next =
-  let b = List.exists Animation.(fun x -> x.id = aid) state.animations in
-  if b then state else {state with kind= next}
+let rec waiting_reducer state aid _old next inputs =
+  if List.exists (input_interrupts_wait_to next) inputs then
+    (* Jump directly to interrupted reducer, carrying inputs, flushing waited animation *)
+    let animations =
+      List.filter Animation.(fun x -> x.id <> aid) state.animations in
+    reducer {state with kind= next; animations} inputs
+  else
+    let b = List.exists Animation.(fun x -> x.id = aid) state.animations in
+    if b then state else {state with kind= next}
 
 (* Main switch *)
-let reducer state inputs =
+and reducer state inputs =
   let animations = List.filter Animation.is_active state.animations in
   let state = {state with animations} in
   if has_error inputs then {state with kind= End}
@@ -211,7 +220,7 @@ let reducer state inputs =
       | Read_rules (p, m) -> read_rules_reducer next p m inputs
       | Playing g -> playing_reducer next g inputs
       | Victory_screen _ -> victory_reducer next
-      | Waiting (aid, old, next) -> waiting_reducer state aid old next
+      | Waiting (aid, old, ns) -> waiting_reducer state aid old ns inputs
       | End -> state in
     if debug then Format.printf "%a -> %a@." pp state pp new_state ;
     transition_trigger state new_state
