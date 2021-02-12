@@ -4,3 +4,10 @@
  (libraries threads tgls.tgl4 tsdl tsdl_ttf tsdl_image tsdl_mixer sexplib)
  (preprocess
   (pps ppx_sexp_conv)))
+
+(install
+ (files
+   #FILES#
+  )
+ (section share)
+ (package ur))
