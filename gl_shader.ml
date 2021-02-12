@@ -1,9 +1,18 @@
-open Core
 open Tgl4
 open Gl_utils
 
+let read_all_file filename =
+  let chan = open_in filename in
+  let rec aux chan =
+    try
+      let line = input_line chan in
+      Printf.sprintf "%s\n%s" line (aux chan)
+    with End_of_file -> "" in
+  let src = aux chan in
+  close_in chan ; src
+
 let compile_shader filename typ =
-  let src = In_channel.read_all filename in
+  let src = read_all_file filename in
   let get_shader sid e = get_int (Gl.get_shaderiv sid e) in
   let sid = Gl.create_shader typ in
   Gl.shader_source sid src ;
@@ -41,7 +50,9 @@ let create ?(v_filename = "shaders/default.vert")
       Error (`Msg msg)
   in
   let* () =
-    List.foldi attributes ~init:(Ok ()) ~f:(fun i status name ->
+    let with_i = List.mapi (fun i x -> (i, x)) attributes in
+    List.fold_left
+      (fun status (i, name) ->
         if Gl.get_attrib_location pid name = -1 then
           let msg =
             Printf.sprintf "%s is not a variable in [%s | %s]" name v_filename
@@ -50,6 +61,7 @@ let create ?(v_filename = "shaders/default.vert")
         else
           let* () = status in
           Ok (Gl.bind_attrib_location pid i name) )
+      (Result.ok ()) with_i
   in
   Ok {pid}
 
