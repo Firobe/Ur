@@ -2,17 +2,19 @@ open Tgl4
 open Gl_utils
 
 let read_all_file filename =
-  let chan = open_in filename in
-  let rec aux chan =
-    try
-      let line = input_line chan in
-      Printf.sprintf "%s\n%s" line (aux chan)
-    with End_of_file -> "" in
-  let src = aux chan in
-  close_in chan ; src
+  try
+    let chan = open_in filename in
+    let rec aux chan =
+      try
+        let line = input_line chan in
+        Printf.sprintf "%s\n%s" line (aux chan)
+      with End_of_file -> "" in
+    let src = aux chan in
+    close_in chan ; Result.ok src
+  with Sys_error m -> Result.error (`Msg m)
 
 let compile_shader filename typ =
-  let src = read_all_file filename in
+  let* src = read_all_file filename in
   let get_shader sid e = get_int (Gl.get_shaderiv sid e) in
   let sid = Gl.create_shader typ in
   Gl.shader_source sid src ;
@@ -22,7 +24,9 @@ let compile_shader filename typ =
     let len = get_shader sid Gl.info_log_length in
     let log = get_string len (Gl.get_shader_info_log sid len None) in
     Gl.delete_shader sid ;
-    let msg = Printf.sprintf "Upon compiling %s: %s" filename log in
+    let msg =
+      Printf.sprintf "Upon compiling %s: %s\nSource was : %s" filename log src
+    in
     Error (`Msg msg)
 
 type t = {pid: int}
