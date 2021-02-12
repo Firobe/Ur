@@ -96,6 +96,32 @@ module Background = struct
     Gl_shader.delete t.shader
 end
 
+module Arrows = struct
+  type t = {geometry: Gl_geometry.t; shader: Gl_shader.t}
+
+  let create themes proj =
+    let open Themes in
+    let {name; x; y; w; h} = Themes.rule_arrows themes in
+    let obj = text_rectangle (-2. +. x) (-1. +. y) w h in
+    let* texture = Themes.prepend_path themes name in
+    let frag_kind = `Textured in
+    let* geometry = Gl_geometry.of_arrays ~frag_kind ~texture obj in
+    let v_filename = "shaders/textured.vert" in
+    let f_filename = "shaders/textured.frag" in
+    let* shader =
+      Gl_shader.create themes.data_path ~v_filename ~f_filename
+        ["vertex"; "texture_coords"]
+    in
+    Gl_shader.send_matrix shader "view" proj ;
+    Ok {geometry; shader}
+
+  let draw t = Gl_geometry.draw t.shader.pid t.geometry
+
+  let delete t =
+    Gl_geometry.delete t.geometry ;
+    Gl_shader.delete t.shader
+end
+
 module Cup = struct
   type r =
     { empty: Gl_geometry.t

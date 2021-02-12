@@ -33,6 +33,7 @@ let window_height = board_total_height * square_size
 type objects =
   { pawn: Pawn.t
   ; board: Board.t
+  ; arrows: Arrows.t
   ; dice: Dice.t
   ; background: Background.t
   ; cup: Cup.t }
@@ -399,12 +400,14 @@ let should_reset_dice_data game animations =
       (* Retain dice data when showing no move *)
       not @@ currently_cannot_move animations
 
+let draw_reserve context s1 s2 =
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) s1 P1 ;
+  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 s2 P2
+
 let draw_board context game animations =
   let open Game in
   Board.draw context.objects.board ;
-  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:(-0.3) game.logic.p1.reserve
-    P1 ;
-  Pawn.draw_reserve context.objects.pawn ~x:0.2 ~y:3.3 game.logic.p2.reserve P2 ;
+  draw_reserve context game.logic.p1.reserve game.logic.p2.reserve ;
   (* Retrieve available choices and animation progress *)
   let* choices, choice_prog, context =
     retrieve_choice_state game animations context
@@ -475,8 +478,27 @@ let draw_rules page themes animations context =
   (* Play select sound if coming from menu *)
   let* context = play_animation_sound animations context `select in
   let* context = play_animation_sound animations context `menu_option in
-  let title, sentences = Rules.get_page page in
+  let title, elements, sentences = Rules.get_page page in
   let text = context.text in
+  (* Display page elements *)
+  List.iter
+    (function
+      | `Board ->
+          Board.draw context.objects.board
+      | `Arrows ->
+          Arrows.draw context.objects.arrows
+      | `Cup ->
+          Cup.draw `Full context.objects.cup
+      | `Reserve (s1, s2) ->
+          draw_reserve context s1 s2
+      | `Pawn p ->
+          Pawn.draw context.objects.pawn p
+      | `Empty_pawn p ->
+          Pawn.draw context.objects.pawn ~choice:(`Empty, 1.) p
+      | `Full_pawn p ->
+          Pawn.draw context.objects.pawn ~choice:(`Full, 1.) p )
+    elements ;
+  (* Pre-compute and display title and sentences *)
   let header = Printf.sprintf "< %s >" title in
   let* text = Gl_text.write text (color themes `Alert) ~x:3.6 ~y:3.5 header in
   let sentences = List.mapi (fun i x -> (i, x)) sentences in
@@ -635,14 +657,16 @@ let init_objects themes =
   let* background = Background.create themes proj_matrix in
   let* cup = Cup.create themes proj_matrix in
   let* dice = Dice.create themes proj_matrix in
-  Ok {pawn; board; dice; background; cup}
+  let* arrows = Arrows.create themes proj_matrix in
+  Ok {pawn; board; dice; background; cup; arrows}
 
-let delete_objects {pawn; board; dice; background; cup} =
+let delete_objects {pawn; board; dice; background; cup; arrows} =
   Pawn.delete pawn ;
   Board.delete board ;
   Dice.delete dice ;
   Background.delete background ;
-  Cup.delete cup
+  Cup.delete cup ;
+  Arrows.delete arrows
 
 let change_theme themes context =
   delete_objects context.objects ;

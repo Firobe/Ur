@@ -30,6 +30,7 @@
                                  ((name "%SHARED%/cl_tex/DICEB/DiceB6.png") (x -0.5))
                                  ))
                         )))
+ (rule_arrows ((name "%SHARED%/arrows.png") (w 11.) (h 5.)))
  (p1_pawn (texture ((name "Red_Pawn.png"))))
  (p2_pawn (texture ((name "Blue_Pawn.png"))))
  (p1_pawn_alt (texture ((name "Red_PawnYellow.png"))))

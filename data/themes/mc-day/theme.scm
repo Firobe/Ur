@@ -30,6 +30,7 @@
                                  ((name "%SHARED%/mc_tex/DiceEqualzero.png") (x -0.25) (w 0.5) (h 0.5))
                                  ))
                         )))
+ (rule_arrows ((name "%SHARED%/arrows.png") (w 11.) (h 5.)))
  (p1_pawn (texture ((name "%SHARED%/mc_tex/Red Pawn.png"))))
  (p2_pawn (texture ((name "%SHARED%/mc_tex/Blue Pawn.png"))))
  (p1_pawn_alt (texture ((name "%SHARED%/mc_tex/Red Pawn(Yellow).png"))))

@@ -51,6 +51,7 @@ type theme =
   ; p1_pawn: color_or_texture
   ; p2_pawn: color_or_texture
   ; p1_pawn_alt: color_or_texture
+  ; rule_arrows: texture
   ; p2_pawn_alt: color_or_texture
   ; hollow_pawn: color_or_texture
   ; sounds: (sound_type * string * float) list [@sexp.list] }
@@ -67,8 +68,15 @@ let default_theme = "default"
 let load_theme dir name =
   let dest = Printf.sprintf "%s/%s/" dir name in
   let s = Sexp.load_sexp (dest ^ "theme.scm") in
-  let t = theme_of_sexp s in
-  (name, t)
+  try
+    let t = theme_of_sexp s in
+    (name, t)
+  with e ->
+    let mex = Printexc.to_string e in
+    let msg =
+      Printf.sprintf "Invalid theme description for '%s': %s" name mex
+    in
+    failwith msg
 
 let load_themes share_path =
   let dir = Printf.sprintf "%s/%s" share_path themes_dir in
@@ -125,6 +133,8 @@ let hollow_pawn t = (current t).hollow_pawn
 let text_colors t = (current t).text_colors
 
 let board t = (current t).board
+
+let rule_arrows t = (current t).rule_arrows
 
 let dice_style t = (current t).dice_style
 
