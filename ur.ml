@@ -10,7 +10,7 @@ let rec game_loop state =
 
 (* TODO also search opam share *)
 let search_order = ["./data/"; "/usr/share/ur/data/"]
-let test_dir path = Sys.is_directory path
+let test_dir path = Sys.file_exists path && Sys.is_directory path
 
 let find_share_dir () =
   match
@@ -26,6 +26,7 @@ let find_share_dir () =
 
 let init_state =
   let share = find_share_dir () in
+  Format.printf "Using data dir: %s@." share ;
   { kind= Title_screen
   ; animations= []
   ; speed= 1.0
