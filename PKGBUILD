@@ -28,14 +28,13 @@ pkgver() {
 
 build() {
   cd "$srcdir/$pkgname"
-  if [[ -d "_opam" ]]; then
-      echo -n "Removing previous switch... "
-      rm -rf "_opam"
-      echo "done."
-  fi
   ./gen-dune.sh
   opam init --bare --no-setup
-  opam switch create -y --deps-only .
+  if [[ -d "_opam" ]]; then
+      opam install -y --deps-only .
+  else
+      opam switch create -y --deps-only .
+  fi
   opam exec -- dune build @install
 }
 
