@@ -43,4 +43,10 @@ let go () =
   ADisplay.terminate () ;
   Format.printf "Terminated normally@."
 
-let _ = go ()
+let _ =
+  Printexc.record_backtrace true ;
+  try go ()
+  with e ->
+    Printf.printf "FATAL: got exception %s\nBacktrace:\n%s\n%!"
+      (Printexc.to_string e)
+      (Printexc.get_backtrace ())

@@ -81,3 +81,28 @@ let pause_menu () =
       ; {header= "How to play"; final= true; options= None}
       ; {header= "Main menu"; final= true; options= None} ]
   ; highlighted= 0 }
+
+let process_inputs ~on_validate ~pack inputs menu =
+  let finish =
+    List.fold_left
+      (function
+        | `Menu menu -> (
+            let cc = get_current_choice menu in
+            function
+            | Input.Validate when cc.final ->
+                `Kind (on_validate menu cc.header)
+            | Input.Previous_menu ->
+                `Menu (move_highlighted menu (-1))
+            | Input.Next_menu ->
+                `Menu (move_highlighted menu 1)
+            | Input.Previous_option ->
+                `Menu (move_option menu (-1))
+            | Input.Next_option ->
+                `Menu (move_option menu 1)
+            | _ ->
+                `Menu menu )
+        | `Kind stop ->
+            fun _ -> `Kind stop )
+      (`Menu menu) inputs
+  in
+  match finish with `Menu m -> pack m | `Kind s -> s

@@ -90,47 +90,33 @@ let title_menu_reducer (next : next_fun) menu themes inputs =
   else
     let speed = ref 1. in
     let ns =
-      List.fold_left
-        (function
-          | Title_menu menu -> (
-              let cc = Menu.get_current_choice menu in
-              function
-              | Input.Validate when cc.final ->
-                  if cc.header = "Play !" then (
-                    let p1 =
-                      Menu.get_choice_option menu "Red player"
-                      |> Option.get |> Game.decode_ptype
-                    in
-                    let p2 =
-                      Menu.get_choice_option menu "Blue player"
-                      |> Option.get |> Game.decode_ptype
-                    in
-                    let points =
-                      Menu.get_choice_option menu "Pawns"
-                      |> Option.get |> int_of_string
-                    in
-                    speed :=
-                      float
-                        ( Menu.get_choice_option menu "Game speed"
-                        |> Option.get |> int_of_string )
-                      /. 100. ;
-                    Playing (Game.default_game p1 p2 points) )
-                  else if cc.header = "How to play" then
-                    Read_rules (0, Title_menu menu)
-                  else failwith "Invalid button"
-              | Input.Previous_menu ->
-                  Title_menu (Menu.move_highlighted menu (-1))
-              | Input.Next_menu ->
-                  Title_menu (Menu.move_highlighted menu 1)
-              | Input.Previous_option ->
-                  Title_menu (Menu.move_option menu (-1))
-              | Input.Next_option ->
-                  Title_menu (Menu.move_option menu 1)
-              | _ ->
-                  Title_menu menu )
-          | stop ->
-              fun _ -> stop )
-        (Title_menu menu) inputs
+      Menu.process_inputs inputs menu
+        ~pack:(fun menu -> Title_menu menu)
+        ~on_validate:
+          (fun menu -> function
+            | "Play !" ->
+                let p1 =
+                  Menu.get_choice_option menu "Red player"
+                  |> Option.get |> Game.decode_ptype
+                in
+                let p2 =
+                  Menu.get_choice_option menu "Blue player"
+                  |> Option.get |> Game.decode_ptype
+                in
+                let points =
+                  Menu.get_choice_option menu "Pawns"
+                  |> Option.get |> int_of_string
+                in
+                speed :=
+                  float
+                    ( Menu.get_choice_option menu "Game speed"
+                    |> Option.get |> int_of_string )
+                  /. 100. ;
+                Playing (Game.default_game p1 p2 points)
+            | "How to play" ->
+                Read_rules (0, Title_menu menu)
+            | _ ->
+                failwith "Invalid button" )
     in
     let theme = Menu.get_choice_option menu "Theme" |> Option.get in
     let themes = Themes.{themes with selected= theme} in
@@ -141,32 +127,18 @@ let pause_menu_reducer (next : next_fun) menu suspended themes inputs =
   if has_quit inputs then next suspended
   else
     let ns =
-      List.fold_left
-        (function
-          | Pause_menu (menu, s) -> (
-              let cc = Menu.get_current_choice menu in
-              function
-              | Input.Validate when cc.final ->
-                  if cc.header = "Resume" then suspended
-                  else if cc.header = "Main menu" then
-                    Title_menu (Menu.title_menu themes)
-                  else if cc.header = "How to play" then
-                    Read_rules (0, Pause_menu (menu, suspended))
-                  else failwith "Invalid button"
-              | Input.Previous_menu ->
-                  Pause_menu (Menu.move_highlighted menu (-1), s)
-              | Input.Next_menu ->
-                  Pause_menu (Menu.move_highlighted menu 1, s)
-              | Input.Previous_option ->
-                  Pause_menu (Menu.move_option menu (-1), s)
-              | Input.Next_option ->
-                  Pause_menu (Menu.move_option menu 1, s)
-              | _ ->
-                  Pause_menu (menu, s) )
-          | stop ->
-              fun _ -> stop )
-        (Pause_menu (menu, suspended))
-        inputs
+      Menu.process_inputs inputs menu
+        ~pack:(fun menu -> Pause_menu (menu, suspended))
+        ~on_validate:
+          (fun menu -> function
+            | "Resume" ->
+                suspended
+            | "Main menu" ->
+                Title_menu (Menu.title_menu themes)
+            | "How to play" ->
+                Read_rules (0, Pause_menu (menu, suspended))
+            | _ ->
+                failwith "Invalid button" )
     in
     next ns
 
