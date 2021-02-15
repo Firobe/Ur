@@ -97,7 +97,7 @@ let to_menu t =
   let names = List.map fst t.themes in
   let n =
     List.mapi (fun i x -> (i, x)) names
-    |> List.find (fun (_, x) -> x = default_theme)
+    |> List.find (fun (_, x) -> x = t.selected)
     |> fst
   in
   (n, names)

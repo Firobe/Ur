@@ -19,9 +19,10 @@ let debug = false
 
 type kind =
   | Title_screen
-  | Menu of Menu.t
+  | Title_menu of Menu.t
   | Read_rules of int * Menu.t
   | Playing of Game.t
+  | Pause_menu of Menu.t * kind
   | Waiting of int * kind * kind
   | Victory_screen of playerNo
   | End
@@ -50,8 +51,10 @@ let pp fmt t =
     (fun fmt -> function
       | Title_screen ->
           fp fmt "title"
-      | Menu _ ->
-          fp fmt "menu"
+      | Title_menu _ ->
+          fp fmt "title_menu"
+      | Pause_menu _ ->
+          fp fmt "pause_menu"
       | Read_rules (p, _) ->
           fp fmt "read_rules (page %d)" p
       | Victory_screen _ ->
@@ -78,17 +81,17 @@ let victory_reducer (next : next_fun) = next End
 
 (* Title screen *)
 let title_reducer (next : next_fun) themes =
-  next (Menu (Menu.default_menu themes))
+  next (Title_menu (Menu.title_menu themes))
 
 (* Menu *)
-let menu_reducer (next : next_fun) menu themes inputs =
+let title_menu_reducer (next : next_fun) menu themes inputs =
   if has_quit inputs then next End
   else
     let speed = ref 1. in
     let ns =
       List.fold_left
         (function
-          | Menu menu -> (
+          | Title_menu menu -> (
               let cc = Menu.get_current_choice menu in
               function
               | Input.Validate when cc.final ->
@@ -114,25 +117,57 @@ let menu_reducer (next : next_fun) menu themes inputs =
                   else if cc.header = "How to play" then Read_rules (0, menu)
                   else failwith "Invalid button"
               | Input.Previous_menu ->
-                  Menu (Menu.move_highlighted menu (-1))
+                  Title_menu (Menu.move_highlighted menu (-1))
               | Input.Next_menu ->
-                  Menu (Menu.move_highlighted menu 1)
+                  Title_menu (Menu.move_highlighted menu 1)
               | Input.Previous_option ->
-                  Menu (Menu.move_option menu (-1))
+                  Title_menu (Menu.move_option menu (-1))
               | Input.Next_option ->
-                  Menu (Menu.move_option menu 1)
+                  Title_menu (Menu.move_option menu 1)
               | _ ->
-                  Menu menu )
+                  Title_menu menu )
           | stop ->
               fun _ -> stop )
-        (Menu menu) inputs
+        (Title_menu menu) inputs
     in
     let theme = Menu.get_choice_option menu "Theme" |> Option.get in
     let themes = Themes.{themes with selected= theme} in
     next ~speed:!speed ~themes ns
 
+(* Menu *)
+let pause_menu_reducer (next : next_fun) menu suspended themes inputs =
+  if has_quit inputs then next suspended
+  else
+    let ns =
+      List.fold_left
+        (function
+          | Pause_menu (menu, s) -> (
+              let cc = Menu.get_current_choice menu in
+              function
+              | Input.Validate when cc.final ->
+                  if cc.header = "Resume" then suspended
+                  else if cc.header = "Main menu" then
+                    Title_menu (Menu.title_menu themes)
+                  else failwith "Invalid button"
+              | Input.Previous_menu ->
+                  Pause_menu (Menu.move_highlighted menu (-1), s)
+              | Input.Next_menu ->
+                  Pause_menu (Menu.move_highlighted menu 1, s)
+              | Input.Previous_option ->
+                  Pause_menu (Menu.move_option menu (-1), s)
+              | Input.Next_option ->
+                  Pause_menu (Menu.move_option menu 1, s)
+              | _ ->
+                  Pause_menu (menu, s) )
+          | stop ->
+              fun _ -> stop )
+        (Pause_menu (menu, suspended))
+        inputs
+    in
+    next ns
+
 let read_rules_reducer (next : next_fun) page next_menu inputs =
-  if has_quit inputs then next (Menu next_menu)
+  if has_quit inputs then next (Title_menu next_menu)
   else
     let n' =
       List.fold_left
@@ -150,7 +185,7 @@ let read_rules_reducer (next : next_fun) page next_menu inputs =
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
-  if has_quit inputs then next End
+  if has_quit inputs then next (Pause_menu (Menu.pause_menu (), Playing game))
   else
     match game.gameplay with
     | Game.Gameplay.Victory p ->
@@ -177,23 +212,29 @@ let transition_trigger state new_state =
     in
     match (state.kind, new_state.kind) with
     (* Title screen *)
-    | Title_screen, Menu _ ->
+    | Title_screen, Title_menu _ ->
         wait_anim (anim_create title_time Title)
     (* Menu move *)
-    | Menu {highlighted= h1; _}, Menu {highlighted= h2; _} when h1 <> h2 ->
+    | Title_menu {highlighted= h1; _}, Title_menu {highlighted= h2; _}
+      when h1 <> h2 ->
+        wait_anim (anim_create menu_move_time (Menu_move (h1, h2)))
+    (* Menu move *)
+    | Pause_menu ({highlighted= h1; _}, _), Pause_menu ({highlighted= h2; _}, _)
+      when h1 <> h2 ->
         wait_anim (anim_create menu_move_time (Menu_move (h1, h2)))
     (* Menu option changed *)
-    | Menu m1, Menu m2 when m1 <> m2 && check_sound `menu_option ->
+    | Title_menu m1, Title_menu m2 when m1 <> m2 && check_sound `menu_option ->
         add_sound `menu_option
     (* Game rules page change *)
     | Read_rules (m1, _), Read_rules (m2, _)
       when m1 <> m2 && check_sound `menu_option ->
         add_sound `menu_option
     (* Menu validated *)
-    | Menu _, (Playing _ | Read_rules _) when check_sound `select ->
+    | (Title_menu _ | Pause_menu _), (Playing _ | Read_rules _)
+      when check_sound `select ->
         add_sound `select
     (* Turn begins *)
-    | ( (Menu _ | Playing {gameplay= Play _ | Replay _; _})
+    | ( (Title_menu _ | Playing {gameplay= Play _ | Replay _; _})
       , Playing {gameplay= Begin_turn _; _} )
     | Playing {gameplay= Play _; _}, Playing {gameplay= Replay _; _}
       when check_sound `cup_full ->
@@ -229,8 +270,18 @@ let transition_trigger state new_state =
   in
   f state new_state []
 
-let input_interrupts_wait_to nk input =
-  match (input, nk) with Input.Quit, Playing _ -> true | _ -> false
+let input_interrupts_wait_to next input =
+  match (input, next) with
+  | Input.Quit, Playing _
+  | Input.Quit, Pause_menu _
+  | Input.Quit, Title_menu _
+  | Input.Previous_menu, Title_menu _
+  | Input.Previous_menu, Pause_menu _
+  | Input.Next_menu, Title_menu _
+  | Input.Next_menu, Pause_menu _ ->
+      true
+  | _ ->
+      false
 
 (* Waiting *)
 let rec waiting_reducer state aid _old next inputs =
@@ -258,12 +309,14 @@ and reducer state inputs =
       match state.kind with
       | Title_screen ->
           title_reducer next state.themes
-      | Menu m ->
-          menu_reducer next m state.themes inputs
+      | Title_menu m ->
+          title_menu_reducer next m state.themes inputs
       | Read_rules (p, m) ->
           read_rules_reducer next p m inputs
       | Playing g ->
           playing_reducer next g inputs
+      | Pause_menu (m, s) ->
+          pause_menu_reducer next m s state.themes inputs
       | Victory_screen _ ->
           victory_reducer next
       | Waiting (aid, old, ns) ->

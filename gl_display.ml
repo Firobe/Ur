@@ -583,7 +583,10 @@ let draw_state state context =
     | Waiting (_, Title_screen, _) | Title_screen ->
         draw_title state.themes state.animations context
     (* Menu *)
-    | Waiting (_, Menu m, _) | Menu m ->
+    | Waiting (_, Title_menu m, _)
+    | Title_menu m
+    | Waiting (_, Pause_menu (m, _), _)
+    | Pause_menu (m, _) ->
         draw_menu m state.themes state.animations context
     | Read_rules (page, _) ->
         draw_rules page state.themes state.animations context

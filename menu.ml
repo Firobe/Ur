@@ -56,7 +56,7 @@ let move_option t delta =
   in
   {t with choices}
 
-let default_menu themes =
+let title_menu themes =
   { choices=
       [ {header= "How to play"; final= true; options= None}
       ; { header= "Red player"
@@ -73,4 +73,10 @@ let default_menu themes =
         ; final= false
         ; options= Some (1, ["50"; "100"; "200"; "500"; "1000"; "5000"]) }
       ; {header= "Play !"; final= true; options= None} ]
+  ; highlighted= 0 }
+
+let pause_menu () =
+  { choices=
+      [ {header= "Resume"; final= true; options= None}
+      ; {header= "Main menu"; final= true; options= None} ]
   ; highlighted= 0 }
