@@ -4,8 +4,15 @@ open Gl_utils
 
 type color = int * int * int [@@deriving sexp]
 
-type text_colors =
-  {base: color; menu_selected: color; alert: color; p1: color; p2: color}
+type text_style = {color: color; outline: (int * color) option [@sexp.option]}
+[@@deriving sexp]
+
+type text_styles =
+  { base: text_style
+  ; menu_selected: text_style
+  ; alert: text_style
+  ; p1: text_style
+  ; p2: text_style }
 [@@deriving sexp]
 
 type texture =
@@ -44,7 +51,7 @@ type sound_type =
 
 type theme =
   { background: color_or_texture
-  ; text_colors: text_colors
+  ; text_styles: text_styles
   ; font: string
   ; board: color_or_texture
   ; dice_style: dice_style
@@ -130,7 +137,7 @@ let p2_pawn_alt t = (current t).p2_pawn_alt
 
 let hollow_pawn t = (current t).hollow_pawn
 
-let text_colors t = (current t).text_colors
+let text_styles t = (current t).text_styles
 
 let board t = (current t).board
 

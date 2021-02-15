@@ -1,11 +1,11 @@
 (
  (font "%SHARED%/klill.ttf")
- (text_colors (
-               (base (0 0 0))
-               (menu_selected (255 165 0))
-               (alert (255 165 0))
-               (p1 (128 0 0))
-               (p2 (0 0 128))
+ (text_styles (
+               (base ((color (0 0 0))))
+               (menu_selected ((color (255 165 0))))
+               (alert ((color (255 165 0))))
+               (p1 ((color (128 0 0))))
+               (p2 ((color (0 0 128))))
                ))
  (background (texture ((name "bg_day.png") (w 11.) (h 5.))))
  (board (texture ((name "bgA.png") (w 11.) (h 5.))))

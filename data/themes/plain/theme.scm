@@ -1,11 +1,11 @@
 (
  (font "%SHARED%/klill.ttf")
- (text_colors (
-   (base (0 0 0))
-   (menu_selected (255 165 0))
-   (alert (200 0 0))
-   (p1 (255 0 0))
-   (p2 (0 0 255))
+ (text_styles (
+   (base ((color (0 0 0))))
+   (menu_selected ((color (255 165 0))))
+   (alert ((color (200 0 0))))
+   (p1 ((color (255 0 0))))
+   (p2 ((color (0 0 255))))
  ))
  (background (color (128 128 128)))
  (dice_style old)

@@ -73,7 +73,7 @@ let get_animation kind =
 
 let color themes =
   let open Themes in
-  let colors = text_colors themes in
+  let colors = text_styles themes in
   function
   | `Black ->
       colors.base
@@ -86,7 +86,7 @@ let color themes =
   | `Blue ->
       colors.p2
   | `Random ->
-      (Random.int 256, Random.int 256, Random.int 256)
+      {color= (Random.int 256, Random.int 256, Random.int 256); outline= None}
 
 let draw_title themes animations context =
   let* context =

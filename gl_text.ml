@@ -10,7 +10,8 @@ module Font_index = struct
 end
 
 module Texture_index = struct
-  type t = string * int * (int * int * int * int) * string
+  (* font_name, outline, font_size, color, text *)
+  type t = string * int * int * (int * int * int * int) * string
 
   let compare = compare
 end
@@ -44,10 +45,10 @@ module Text_object = struct
     Gl_shader.send_matrix shader "view" proj ;
     Ok {geometry; shader; texture; quad_width; quad_height}
 
-  let draw t scale x y =
+  let draw t scale ?(ax = 0.) ?(ay = 0.) x y =
     Gl.bind_texture Gl.texture_2d t.texture.tid ;
-    let dx = x -. (scale *. t.quad_width /. 2.) in
-    let dy = y -. (scale *. t.quad_height /. 2.) in
+    let dx = x -. (scale *. ((t.quad_width /. 2.) +. (ax /. 100.))) in
+    let dy = y -. (scale *. ((t.quad_height /. 2.) +. (ay /. 100.))) in
     let trans = Matrix.translation dx dy 0. |> Matrix.scale scale scale 1. in
     Gl_geometry.draw ~trans t.shader.pid t.geometry ;
     Gl.bind_texture Gl.texture_2d 0
@@ -113,32 +114,45 @@ let get_font t font_name font_size =
   in
   Ok (font, cache)
 
-let gen_texture t font_name font_size color text =
+let gen_texture t font_name outline font_size color text =
   (* TODO manage bold/italic/etc. using Ttf.set_font_style *)
   let* font, font_cache = get_font t font_name font_size in
+  if Ttf.get_font_outline font <> outline then Ttf.set_font_outline font outline ;
   let* surface = Ttf.render_utf8_blended font text color in
   let* texture = Gl_texture.create_from_surface surface in
   Ok (texture, {t with font_cache})
 
-let get_obj t font_name font_size color text =
-  let key = (font_name, font_size, color, text) in
+let get_obj t font_name outline font_size color text =
+  let key = (font_name, outline, font_size, color, text) in
   match Texture_cache.find_opt key t.texture_cache with
   | Some obj ->
       Ok (obj, t)
   | None ->
       let r, g, b, a = color in
       let sdl_color = Sdl.Color.create ~r ~g ~b ~a in
-      let* texture, t = gen_texture t font_name font_size sdl_color text in
+      let* texture, t =
+        gen_texture t font_name outline font_size sdl_color text
+      in
       let* obj = Text_object.create t.data_path t.proj texture in
       let texture_cache = Texture_cache.add key obj t.texture_cache in
       Ok (obj, {t with texture_cache})
 
-let write t ?font_name ?font_size (r, g, b) ?(a = 255) ?(scale = 1.0) ?(x = 0.)
-    ?(y = 0.) text =
+let write_raw t font_name outline font_size (r, g, b) a scale x y text =
   let* font_name, font_size = get_font_spec t font_name font_size in
-  let* obj, t = get_obj t font_name font_size (r, g, b, a) text in
-  Text_object.draw obj scale x y ;
+  let* obj, t = get_obj t font_name outline font_size (r, g, b, a) text in
+  Text_object.draw obj ~ax:(float @@ -outline) ~ay:(float @@ -outline) scale x y ;
   Ok t
+
+let write t ?font_name ?font_size Themes.{color; outline} ?(a = 255)
+    ?(scale = 1.0) ?(x = 0.) ?(y = 0.) msg =
+  let* t =
+    match outline with
+    | Some (osize, ocolor) ->
+        write_raw t font_name osize font_size ocolor a scale x y msg
+    | None ->
+        Result.ok t
+  in
+  write_raw t font_name 0 font_size color a scale x y msg
 
 let terminate t =
   Texture_cache.iter (fun _ obj -> Text_object.delete obj) t.texture_cache ;
