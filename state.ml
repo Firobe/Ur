@@ -20,7 +20,7 @@ let debug = false
 type kind =
   | Title_screen
   | Title_menu of Menu.t
-  | Read_rules of int * Menu.t
+  | Read_rules of int * kind
   | Playing of Game.t
   | Pause_menu of Menu.t * kind
   | Waiting of int * kind * kind
@@ -77,7 +77,8 @@ type next_fun =
   ?animations:Animation.t list -> ?speed:float -> ?themes:Themes.t -> kind -> t
 
 (* Victory *)
-let victory_reducer (next : next_fun) = next End
+let victory_reducer (next : next_fun) themes =
+  next (Title_menu (Menu.title_menu themes))
 
 (* Title screen *)
 let title_reducer (next : next_fun) themes =
@@ -114,7 +115,8 @@ let title_menu_reducer (next : next_fun) menu themes inputs =
                         |> Option.get |> int_of_string )
                       /. 100. ;
                     Playing (Game.default_game p1 p2 points) )
-                  else if cc.header = "How to play" then Read_rules (0, menu)
+                  else if cc.header = "How to play" then
+                    Read_rules (0, Title_menu menu)
                   else failwith "Invalid button"
               | Input.Previous_menu ->
                   Title_menu (Menu.move_highlighted menu (-1))
@@ -148,6 +150,8 @@ let pause_menu_reducer (next : next_fun) menu suspended themes inputs =
                   if cc.header = "Resume" then suspended
                   else if cc.header = "Main menu" then
                     Title_menu (Menu.title_menu themes)
+                  else if cc.header = "How to play" then
+                    Read_rules (0, Pause_menu (menu, suspended))
                   else failwith "Invalid button"
               | Input.Previous_menu ->
                   Pause_menu (Menu.move_highlighted menu (-1), s)
@@ -166,8 +170,8 @@ let pause_menu_reducer (next : next_fun) menu suspended themes inputs =
     in
     next ns
 
-let read_rules_reducer (next : next_fun) page next_menu inputs =
-  if has_quit inputs then next (Title_menu next_menu)
+let read_rules_reducer (next : next_fun) page suspended inputs =
+  if has_quit inputs then next suspended
   else
     let n' =
       List.fold_left
@@ -181,7 +185,7 @@ let read_rules_reducer (next : next_fun) page next_menu inputs =
         page inputs
     in
     let next_page = Menu.modulo n' (Rules.nb_pages ()) in
-    next (Read_rules (next_page, next_menu))
+    next (Read_rules (next_page, suspended))
 
 (* Playing *)
 let playing_reducer (next : next_fun) game inputs =
@@ -318,7 +322,7 @@ and reducer state inputs =
       | Pause_menu (m, s) ->
           pause_menu_reducer next m s state.themes inputs
       | Victory_screen _ ->
-          victory_reducer next
+          victory_reducer next state.themes
       | Waiting (aid, old, ns) ->
           waiting_reducer state aid old ns inputs
       | End ->

@@ -78,5 +78,6 @@ let title_menu themes =
 let pause_menu () =
   { choices=
       [ {header= "Resume"; final= true; options= None}
+      ; {header= "How to play"; final= true; options= None}
       ; {header= "Main menu"; final= true; options= None} ]
   ; highlighted= 0 }
