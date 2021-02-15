@@ -146,11 +146,14 @@ module Logic = struct
     else if state.p2.points = state.goal then Some P2
     else None
 
+  let get_dice_sum (d1, d2, d3, d4) =
+    let tb x = if x <= 2 then 1 else 0 in
+    tb d1 + tb d2 + tb d3 + tb d4
+
   let throw_dices () =
     let throw () = Random.int 6 in
-    let tb x = if x <= 2 then 1 else 0 in
-    let t1, t2, t3, t4 = (throw (), throw (), throw (), throw ()) in
-    (tb t1 + tb t2 + tb t3 + tb t4, (t1, t2, t3, t4))
+    let dices = (throw (), throw (), throw (), throw ()) in
+    (get_dice_sum dices, dices)
 end
 
 module AI = struct

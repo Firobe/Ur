@@ -35,7 +35,7 @@ let get_string_with_length len f =
   let a = bigarray_create Bigarray.char len in
   let i = bigarray_create Bigarray.int32 1 in
   f (Some i) a ;
-  let ret_len = Int32.to_int i.{0} in
+  let _ret_len = Int32.to_int i.{0} in
   Gl.string_of_bigarray a
 
 let str = Printf.sprintf

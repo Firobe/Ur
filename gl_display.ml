@@ -226,7 +226,15 @@ let throw_dice_data () =
   let real = List.map to_float_coords sorted in
   {kinds= dns; coords= real}
 
-let draw_dices (d1, d2, d3, d4) animation context =
+let write_in_corner context themes msg =
+  let* text =
+    Gl_text.write context.text
+      (color themes `Alert)
+      ~scale:0.8 ~x:(-1.0) ~y:3.5 msg
+  in
+  Result.ok {context with text}
+
+let draw_dices (d1, d2, d3, d4) animation context themes =
   (* Draw dices *)
   let kinds, coords, context =
     match context.dice_data with
@@ -250,7 +258,10 @@ let draw_dices (d1, d2, d3, d4) animation context =
       let x, y = interpolate prog (-1.5, -1.) (x, y) in
       Dice.draw context.objects.dice ~n ~dice_n ~x ~y )
     kinds_and_coords [d1; d2; d3; d4] ;
-  context
+  if prog >= 1. then
+    let sum = Game.Logic.get_dice_sum (d1, d2, d3, d4) in
+    write_in_corner context themes (Printf.sprintf "Got %d!" sum)
+  else Result.ok context
 
 let draw_score game animations context themes =
   let open Game in
@@ -285,7 +296,7 @@ let maybe_draw_cannot_move animations context themes =
       animations
   with
   | Some ({kind= Cannot_choose dices; _} as a) ->
-      let context = draw_dices dices None context in
+      let* context = draw_dices dices None context themes in
       let* text =
         Gl_text.write context.text
           (color themes `Alert)
@@ -417,14 +428,14 @@ let draw_board context game animations =
   (* Animate moving pawn *)
   draw_moving_pawn animations context
 
-let maybe_draw_dices game animations context =
+let maybe_draw_dices game animations context themes =
   let open Game in
   match game.gameplay with
   | Choose (_, dices, _) ->
       let choice_a = get_animation Choice animations in
-      draw_dices dices choice_a context
+      draw_dices dices choice_a context themes
   | _ ->
-      context
+      Result.ok context
 
 let draw_cup game animations context =
   let open Game in
@@ -457,19 +468,13 @@ let draw_cup game animations context =
 
 let draw_current_player game animations context themes =
   let open Game in
-  let write_in_corner msg =
-    let* text =
-      Gl_text.write context.text
-        (color themes `Alert)
-        ~scale:0.8 ~x:(-1.0) ~y:3.5 msg
-    in
-    Result.ok {context with text}
-  in
   match game.gameplay with
   | Begin_turn p when not @@ currently_cannot_move animations ->
-      write_in_corner (Format.asprintf "Go, %a!" Game.pp_player p)
+      write_in_corner context themes
+        (Format.asprintf "Go, %a!" Game.pp_player p)
   | Replay (p, _) when not @@ currently_cannot_move animations ->
-      write_in_corner (Format.asprintf "Again, %a!" Game.pp_player p)
+      write_in_corner context themes
+        (Format.asprintf "Again, %a!" Game.pp_player p)
   | _ ->
       Result.ok context
 
@@ -526,7 +531,7 @@ let draw_playing game themes animations context =
   (* Draw whole board *)
   let* context = draw_board context game animations in
   (* Draw dices when applicable *)
-  let context = maybe_draw_dices game animations context in
+  let* context = maybe_draw_dices game animations context themes in
   (* Draw up with correct state *)
   let* context = draw_cup game animations context in
   (* Announce who is playing *)
