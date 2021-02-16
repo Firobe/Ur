@@ -36,13 +36,7 @@ let create_from_surface raw_surface =
   Ok {tid; surface; width; height}
 
 let create_from_bmp path =
-  let* surface =
-    match Tsdl_image.Image.load path with
-    | Some x ->
-        Result.ok x
-    | None ->
-        Result.error (`Msg ("Could not load texture " ^ path))
-  in
+  let* surface = Tsdl_image.Image.load path in
   create_from_surface surface
 
 let delete t =
