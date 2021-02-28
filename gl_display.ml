@@ -226,11 +226,11 @@ let throw_dice_data () =
   let real = List.map to_float_coords sorted in
   {kinds= dns; coords= real}
 
-let write_in_corner context themes msg =
+let write_in_corner ?(off = 0.) context themes msg =
   let* text =
     Gl_text.write context.text
       (color themes `Alert)
-      ~scale:0.8 ~x:(-1.0) ~y:3.5 msg
+      ~scale:0.8 ~x:(-1.0) ~y:(3.5 +. off) msg
   in
   Result.ok {context with text}
 
@@ -260,7 +260,7 @@ let draw_dices (d1, d2, d3, d4) animation context themes =
     kinds_and_coords [d1; d2; d3; d4] ;
   if prog >= 1. then
     let sum = Game.Logic.get_dice_sum (d1, d2, d3, d4) in
-    write_in_corner context themes (Printf.sprintf "Got %d!" sum)
+    write_in_corner context themes (Printf.sprintf "Got %d" sum)
   else Result.ok context
 
 let draw_score game animations context themes =
@@ -297,15 +297,11 @@ let maybe_draw_cannot_move animations context themes =
   with
   | Some ({kind= Cannot_choose dices; _} as a) ->
       let* context = draw_dices dices None context themes in
-      let* text =
-        Gl_text.write context.text
-          (color themes `Alert)
-          ~scale:0.8 ~x:(-1.0) ~y:3.5 "No move!"
-      in
+      let* context = write_in_corner ~off:(-0.5) context themes "No move!" in
       let* sounds =
         Gl_audio.play_theme ~anim_unique:a context.sounds `no_move
       in
-      Result.ok {context with text; sounds}
+      Result.ok {context with sounds}
   | _ ->
       Result.ok context
 

@@ -1,7 +1,7 @@
 (
  (font "%SHARED%/klill.ttf")
  (text_styles (
-               (base ((color (0 0 0)) (outline (1 (255 165 0)))))
+               (base ((color (0 0 0)) (outline (1 (255 255 255)))))
                (menu_selected ((color (255 165 0))))
                (alert ((color (255 165 0))))
                (p1 ((color (128 0 0))))
