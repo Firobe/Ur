@@ -10,12 +10,12 @@ let rec game_loop state =
 
 let data_dir = "data/"
 
-let get_share_dir () =
+let opam_share_dir () =
   let inp = Unix.open_process_in "opam var ur:share" in
   let r = input_line inp in
   close_in inp ; r ^ "/"
 
-let search_order = ["./"; "/usr/share/ur/"; get_share_dir ()]
+let search_order = ["./"; "/usr/share/ur/"; opam_share_dir ()]
 
 let test_dir path = Sys.file_exists path && Sys.is_directory path
 
