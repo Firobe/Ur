@@ -8,8 +8,14 @@ let rec game_loop state =
     let state' = State.reducer state inputs in
     game_loop state'
 
-(* TODO also search opam share *)
-let search_order = ["./data/"; "/usr/share/ur/data/"]
+let data_dir = "data/"
+
+let get_share_dir () =
+  let inp = Unix.open_process_in "opam var ur:share" in
+  let r = input_line inp in
+  close_in inp ; r ^ "/"
+
+let search_order = ["./"; "/usr/share/ur/"; get_share_dir ()]
 
 let test_dir path = Sys.file_exists path && Sys.is_directory path
 
@@ -17,8 +23,9 @@ let find_share_dir () =
   match
     List.fold_left
       (fun found path ->
+        let data_path = path ^ data_dir in
         if Option.is_some found then found
-        else if test_dir path then Some path
+        else if test_dir data_path then Some data_path
         else None )
       None search_order
   with
