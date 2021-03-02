@@ -7,7 +7,6 @@ See also this great [Youtube video](https://www.youtube.com/watch?v=WZskjLq040I)
 
 ## Installing
 
-(not completely functional for now )  
 Run `opam install .`  
 This will install the `ur` executable, which launches the game.
 
