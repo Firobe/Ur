@@ -11,9 +11,11 @@ let rec game_loop state =
 let data_dir = "data/"
 
 let opam_share_dir () =
-  let inp = Unix.open_process_in "opam var ur:share" in
-  let r = input_line inp in
-  close_in inp ; r ^ "/"
+  try
+    let inp = Unix.open_process_in "opam var ur:share" in
+    let r = input_line inp in
+    close_in inp ; r ^ "/"
+  with _ -> "./"
 
 let search_order = ["./"; "/usr/share/ur/"; opam_share_dir ()]
 
