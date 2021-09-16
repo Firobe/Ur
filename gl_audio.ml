@@ -14,7 +14,7 @@ let init () =
     Mixer.open_audio Mixer.default_frequency Mixer.default_format
       Mixer.default_channels 1024
   in
-  if Mixer.allocate_channels () channels = channels then Result.ok ()
+  if Mixer.allocate_channels channels = channels then Result.ok ()
   else Result.error (`Msg "Could not allocate enough channels")
 
 let terminate () = Mixer.close_audio () ; Mixer.quit ()

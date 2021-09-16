@@ -11,14 +11,10 @@ depends: [
   "sexplib"
   "ppx_sexp_conv"
   "tsdl"
-  "tsdl-image" {= "0.3.0"}
-  "tsdl-ttf" {= "0.2"}
-  "tsdl-mixer" {= "0.2"}
+  "tsdl-image" {>= "0.3"}
+  "tsdl-ttf" {>= "0.3"}
+  "tsdl-mixer" {>= "0.3.0"}
   "tgls"
-]
-pin-depends: [
-  ["tsdl-mixer.0.2" "git+https://github.com/MatiasGoldfeld/tsdl-mixer.git"]
-  ["tsdl-image.0.3.0" "git+https://github.com/Firobe/tsdl-image.git"]
 ]
 build: [
   ["./gen-dune.sh"]
